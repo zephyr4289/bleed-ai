@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import com.zai.chat.data.local.preferences.TokenManager
 import com.zai.chat.network.auth.AuthEventManager
 import com.zai.chat.ui.auth.TokenReconnectScreen
+import com.zai.chat.ui.debug.ComponentGalleryScreen
 import com.zai.chat.ui.theme.ZaiTheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -45,6 +46,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             ZaiTheme(themeMode = "OLED") {
+                var showGallery by remember { mutableStateOf(false) }
                 var showAuth by remember { mutableStateOf(tokenManager.getStoredToken() == null) }
                 var dismissedWithoutToken by remember { mutableStateOf(false) }
 
@@ -67,7 +69,21 @@ class MainActivity : ComponentActivity() {
                     authEventManager.events.collect { showAuth = true }
                 }
 
-                if (showAuth) {
+                if (showGallery) {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        ComponentGalleryScreen(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(top = 32.dp)
+                        )
+                        TextButton(
+                            onClick = { showGallery = false },
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            Text("← Back")
+                        }
+                    }
+                } else if (showAuth) {
                     TokenReconnectScreen(
                         isFirstLogin = tokenManager.getStoredToken() == null,
                         onTokenExtracted = { token ->
@@ -86,6 +102,9 @@ class MainActivity : ComponentActivity() {
                         onManageSession = {
                             dismissedWithoutToken = false
                             showAuth = true
+                        },
+                        onOpenGallery = {
+                            showGallery = true
                         }
                     )
                 }
@@ -98,7 +117,8 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun PlaceholderHome(
     hasSession: Boolean,
-    onManageSession: () -> Unit
+    onManageSession: () -> Unit,
+    onOpenGallery: () -> Unit
 ) {
     Box(
         modifier = Modifier.fillMaxSize().padding(24.dp),
@@ -108,7 +128,7 @@ private fun PlaceholderHome(
             Text("Z.AI", style = MaterialTheme.typography.headlineMedium)
             Spacer(Modifier.height(8.dp))
             Text(
-                "Phase 5 — auth gate online",
+                "Phase 6 — components online",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -125,6 +145,8 @@ private fun PlaceholderHome(
             )
             Spacer(Modifier.height(8.dp))
             TextButton(onClick = onManageSession) { Text("Manage session") }
+            Spacer(Modifier.height(4.dp))
+            TextButton(onClick = onOpenGallery) { Text("Component gallery") }
         }
     }
 }
