@@ -18,9 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -163,15 +161,9 @@ private fun AnnotatedString.Builder.appendInline(
                 SpanStyle(fontFamily = s.mono, background = s.codeBg, fontSize = 14.sp)
             ).also { append(g[1]); pop() }
             g[2].isNotEmpty() -> {
-                pushLink(
-                    LinkAnnotation.Url(
-                        url = g[3],
-                        styles = TextLinkStyles(
-                            style = SpanStyle(color = s.linkColor, textDecoration = TextDecoration.Underline)
-                        )
-                    )
-                )
-                append(g[2]); pop()
+                pushStyle(SpanStyle(color = s.linkColor, textDecoration = TextDecoration.Underline))
+                append(g[2])
+                pop()
             }
             g[4].isNotEmpty() -> pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
                 .also { appendInline(g[4], s); pop() }   // recurse: bold+inline-code
@@ -189,15 +181,9 @@ private fun AnnotatedString.Builder.appendInline(
         var tLast = 0
         for (u in bareUrlRegex.findAll(tail)) {
             if (u.range.first > tLast) append(tail.substring(tLast, u.range.first))
-            pushLink(
-                LinkAnnotation.Url(
-                    url = u.value,
-                    styles = TextLinkStyles(
-                        style = SpanStyle(color = s.linkColor, textDecoration = TextDecoration.Underline)
-                    )
-                )
-            )
-            append(u.value); pop()
+            pushStyle(SpanStyle(color = s.linkColor, textDecoration = TextDecoration.Underline))
+            append(u.value)
+            pop()
             tLast = u.range.last + 1
         }
         if (tLast < tail.length) append(tail.substring(tLast))
