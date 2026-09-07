@@ -20,7 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.TextLinkStyle
+import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -165,9 +165,9 @@ private fun AnnotatedString.Builder.appendInline(
             g[2].isNotEmpty() -> {
                 pushLink(
                     LinkAnnotation.Url(
-                        g[3],
-                        TextLinkStyle(
-                            SpanStyle(color = s.linkColor, textDecoration = TextDecoration.Underline)
+                        url = g[3],
+                        styles = TextLinkStyles(
+                            style = SpanStyle(color = s.linkColor, textDecoration = TextDecoration.Underline)
                         )
                     )
                 )
@@ -191,9 +191,9 @@ private fun AnnotatedString.Builder.appendInline(
             if (u.range.first > tLast) append(tail.substring(tLast, u.range.first))
             pushLink(
                 LinkAnnotation.Url(
-                    u.value,
-                    TextLinkStyle(
-                        SpanStyle(color = s.linkColor, textDecoration = TextDecoration.Underline)
+                    url = u.value,
+                    styles = TextLinkStyles(
+                        style = SpanStyle(color = s.linkColor, textDecoration = TextDecoration.Underline)
                     )
                 )
             )
