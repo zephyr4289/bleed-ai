@@ -144,6 +144,8 @@ class MainActivity : ComponentActivity() {
                                 ChatScreen(
                                     viewModel = chatViewModel,
                                     onOpenDrawer = { scope.launch { drawerState.open() } },
+                                    onOpenSettings = { navController.navigate("settings") },
+                                    onNewChat = { navController.navigate("chat") },
                                     onOpenGallery = { showGallery = true }
                                 )
                             }

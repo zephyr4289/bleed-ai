@@ -93,7 +93,7 @@ fun MessageBubble(
                 }
                 Surface(
                     shape = ShapeBubbleUser,
-                    color = UserBubbleFillDark,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
                     modifier = Modifier
                         .combinedClickable(
                             onClick = { showActions = !showActions },
@@ -103,6 +103,7 @@ fun MessageBubble(
                     Text(
                         text = message.content,
                         style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
                     )
                 }
@@ -131,7 +132,13 @@ fun MessageBubble(
                 // 2. Document body (selectable) — empty while only thinking
                 if (message.content.isNotEmpty()) {
                     SelectionContainer {
-                        MarkdownText(markdown = message.content, isStreaming = isStreaming)
+                        MarkdownText(
+                            markdown = message.content,
+                            isStreaming = isStreaming,
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                        )
                     }
                 } else if (!isStreaming && message.reasoning.isNullOrEmpty()) {
                     Text(

@@ -12,6 +12,8 @@ import androidx.compose.ui.unit.Density
 private val DarkColorScheme = darkColorScheme(
     primary = ClaudePeach,
     onPrimary = TrueBlack,
+    primaryContainer = ClaudePeachContainerDark,
+    onPrimaryContainer = ClaudePeachOnContainerDark,
     surface = ObsidianBase,
     onSurface = TextPrimaryDark,
     surfaceVariant = SurfaceContainerDark,
@@ -22,8 +24,10 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = ClaudePeach,
+    primary = ClaudePeachDark,
     onPrimary = PureWhite,
+    primaryContainer = ClaudePeachContainerLight,
+    onPrimaryContainer = ClaudePeachOnContainerLight,
     surface = SurfaceLight,
     onSurface = TextPrimaryLight,
     surfaceVariant = SurfaceContainerLight,

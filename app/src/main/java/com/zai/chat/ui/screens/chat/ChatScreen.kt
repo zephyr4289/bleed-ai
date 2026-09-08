@@ -56,11 +56,22 @@ import com.zai.chat.data.model.MessageRole
 import com.zai.chat.ui.components.MessageBubble
 import kotlinx.coroutines.launch
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Settings
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
     viewModel: ChatViewModel,
     onOpenDrawer: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
+    onNewChat: () -> Unit = {},
     onOpenGallery: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -80,7 +91,7 @@ fun ChatScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = state.chatTitle,
+                        text = state.chatTitle.ifBlank { "Z.AI" },
                         style = MaterialTheme.typography.titleMedium
                             .copy(fontWeight = FontWeight.SemiBold),
                         maxLines = 1,
@@ -89,10 +100,16 @@ fun ChatScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onOpenDrawer) {
-                        Icon(Icons.Rounded.Menu, contentDescription = "Menu")
+                        Icon(Icons.Rounded.Menu, contentDescription = "Open drawer")
                     }
                 },
                 actions = {
+                    IconButton(onClick = onNewChat) {
+                        Icon(Icons.Rounded.Add, contentDescription = "New chat")
+                    }
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(Icons.Rounded.Settings, contentDescription = "Settings")
+                    }
                     if (onOpenGallery != null) {
                         IconButton(onClick = onOpenGallery) {
                             Icon(Icons.Rounded.Code, contentDescription = "Component gallery")
@@ -164,6 +181,75 @@ fun ChatScreen(
                                 Icons.Rounded.Close, "Dismiss",
                                 tint = MaterialTheme.colorScheme.onErrorContainer,
                                 modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (state.messages.isEmpty() && !state.isStreaming && !state.awaitingHandoff) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.size(64.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Rounded.AutoAwesome,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        text = "How can I help you today?",
+                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = "Powered by GLM-5.3-Flash • Ultra-fast reasoning & code",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(24.dp))
+
+                    val starterPrompts = listOf(
+                        "💡 Explain quantum computing in simple terms",
+                        "💻 Write a Kotlin StateFlow vs SharedFlow guide",
+                        "📊 Debug an OkHttp SSE streaming issue",
+                        "✍️ Draft a technical architecture design"
+                    )
+
+                    starterPrompts.forEach { prompt ->
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                                .clickable {
+                                    viewModel.onEvent(ChatUiEvent.SendMessage(prompt.substring(3)))
+                                }
+                        ) {
+                            Text(
+                                text = prompt,
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                             )
                         }
                     }

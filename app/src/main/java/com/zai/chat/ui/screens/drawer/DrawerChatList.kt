@@ -69,7 +69,7 @@ fun DrawerChatList(
             .fillMaxHeight()
             .fillMaxWidth(0.85f)
             .background(MaterialTheme.colorScheme.surface)
-            .padding(16.dp)
+            .padding(top = 16.dp, start = 16.dp, end = 16.dp, bottom = 12.dp)
     ) {
         // ── Header ───────────────────────────────────────────────────
         Row(
@@ -77,27 +77,61 @@ fun DrawerChatList(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                "Chats",
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold)
-            )
-            Row {
-                IconButton(onClick = onNewChat) {
-                    Icon(Icons.Rounded.Add, contentDescription = "New chat")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            "Z",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        )
+                    }
                 }
-                IconButton(onClick = onOpenSettings) {
-                    Icon(Icons.Rounded.Settings, contentDescription = "Settings")
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    "Z.AI",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                )
+            }
+
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier.clickable { onNewChat() }
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Rounded.Add,
+                        contentDescription = "New chat",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        "New",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
                 }
             }
         }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
 
         // ── Search ───────────────────────────────────────────────────
         OutlinedTextField(
             value = state.query,
             onValueChange = viewModel::onQueryChanged,
             placeholder = {
-                Text("Search messages…", style = MaterialTheme.typography.bodyMedium)
+                Text("Search conversations…", style = MaterialTheme.typography.bodyMedium)
             },
             leadingIcon = {
                 Icon(Icons.Rounded.Search, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -114,7 +148,7 @@ fun DrawerChatList(
             colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                 unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                focusedBorderColor = Color.Transparent,
+                focusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
                 unfocusedBorderColor = Color.Transparent
             ),
             modifier = Modifier.fillMaxWidth()
@@ -155,11 +189,11 @@ fun DrawerChatList(
                 val recent = state.chats.filter { !it.pinned }
 
                 if (pinned.isNotEmpty()) {
-                    item(key = "header-pinned") { SectionLabel("Pinned") }
+                    item(key = "header-pinned") { SectionLabel("PINNED") }
                     items(pinned, key = { "p-${it.id}" }) { chat ->
                         ChatRow(viewModel, chat, onSelectChat)
                     }
-                    item(key = "header-recent") { SectionLabel("Recent") }
+                    item(key = "header-recent") { SectionLabel("RECENT") }
                 }
                 items(recent, key = { it.id }) { chat ->
                     ChatRow(viewModel, chat, onSelectChat)
@@ -167,16 +201,62 @@ fun DrawerChatList(
                 if (state.chats.isEmpty()) {
                     item(key = "no-chats") {
                         Text(
-                            "No chats yet — send your first message",
+                            "No conversations yet\nSend your first prompt!",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 24.dp)
+                                .padding(vertical = 32.dp)
                         )
                     }
                 }
+            }
+        }
+
+        // ── Bottom Settings Footer ───────────────────────────────────
+        Spacer(Modifier.height(8.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+        )
+        Spacer(Modifier.height(8.dp))
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onOpenSettings() }
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Rounded.Settings,
+                        contentDescription = "Settings",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        "Settings",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    )
+                }
+                Text(
+                    "⚙️",
+                    style = MaterialTheme.typography.labelSmall
+                )
             }
         }
     }
