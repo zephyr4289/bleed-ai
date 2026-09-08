@@ -37,10 +37,11 @@ class ChatViewModel @Inject constructor(
     private var isScrolledUp = false
 
     init {
-        // Forward-compat: P8 navigation will pass chatId as a route arg.
+        // P8: navigation passes chatId via the route; SavedStateHandle delivers it.
         savedStateHandle.get<String>("chatId")?.let { id ->
             _uiState.update { it.copy(chatId = id) }
             observeChat(id)
+            viewModelScope.launch { repository.syncChatMessages(id) }
         }
 
         viewModelScope.launch {

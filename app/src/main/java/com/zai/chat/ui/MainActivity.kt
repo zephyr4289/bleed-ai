@@ -4,27 +4,50 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.zai.chat.data.local.preferences.TokenManager
 import com.zai.chat.network.auth.AuthEventManager
 import com.zai.chat.ui.auth.TokenReconnectScreen
 import com.zai.chat.ui.debug.ComponentGalleryScreen
 import com.zai.chat.ui.screens.chat.ChatScreen
 import com.zai.chat.ui.screens.chat.ChatViewModel
+import com.zai.chat.ui.screens.drawer.DrawerChatList
+import com.zai.chat.ui.screens.drawer.DrawerViewModel
 import com.zai.chat.ui.theme.ZaiTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -56,9 +79,20 @@ class MainActivity : ComponentActivity() {
                     authEventManager.events.collect { showAuth = true }
                 }
 
+                val navController = rememberNavController()
+                val drawerState = rememberDrawerState(DrawerValue.Closed)
+                val scope = rememberCoroutineScope()
+                val drawerViewModel: DrawerViewModel = hiltViewModel()
+
+                LaunchedEffect(drawerState.currentValue) {
+                    if (drawerState.currentValue == DrawerValue.Open) {
+                        drawerViewModel.refresh()
+                    }
+                }
+
                 when {
                     showGallery -> {
-                        androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize()) {
+                        Box(modifier = Modifier.fillMaxSize()) {
                             ComponentGalleryScreen(
                                 modifier = Modifier
                                     .fillMaxSize()
@@ -75,13 +109,91 @@ class MainActivity : ComponentActivity() {
                         onTokenExtracted = { tokenManager.saveToken(it) },
                         onDismiss = { dismissedWithoutToken = true; showAuth = false }
                     )
-                    else -> ChatScreen(
-                        viewModel = hiltViewModel<ChatViewModel>(),
-                        onOpenDrawer = { /* P8: drawer */ },
-                        onOpenGallery = { showGallery = true }
-                    )
+                    else -> ModalNavigationDrawer(
+                        drawerState = drawerState,
+                        drawerContent = {
+                            DrawerChatList(
+                                viewModel = drawerViewModel,
+                                onSelectChat = { chatId ->
+                                    scope.launch { drawerState.close() }
+                                    navController.navigate("chat?chatId=$chatId")
+                                },
+                                onNewChat = {
+                                    scope.launch { drawerState.close() }
+                                    navController.navigate("chat")
+                                },
+                                onOpenSettings = {
+                                    scope.launch { drawerState.close() }
+                                    navController.navigate("settings")
+                                }
+                            )
+                        }
+                    ) {
+                        NavHost(
+                            navController = navController,
+                            startDestination = "chat"
+                        ) {
+                            composable(
+                                route = "chat?chatId={chatId}",
+                                arguments = listOf(
+                                    navArgument("chatId") {
+                                        type = NavType.StringType
+                                        nullable = true
+                                        defaultValue = null
+                                    }
+                                )
+                            ) { backStackEntry ->
+                                val chatViewModel: ChatViewModel = hiltViewModel(backStackEntry)
+                                ChatScreen(
+                                    viewModel = chatViewModel,
+                                    onOpenDrawer = { scope.launch { drawerState.open() } },
+                                    onOpenGallery = { showGallery = true }
+                                )
+                            }
+                            composable("settings") {
+                                SettingsStubScreen(onNavigateBack = { navController.popBackStack() })
+                            }
+                        }
+                    }
                 }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SettingsStubScreen(onNavigateBack: () -> Unit) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Settings") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { padding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Settings — coming in Phase 9",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
