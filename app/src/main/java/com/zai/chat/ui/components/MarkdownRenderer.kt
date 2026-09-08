@@ -156,6 +156,7 @@ private fun AnnotatedString.Builder.appendInline(
     for (m in inlineRegex.findAll(text)) {
         if (m.range.first > last) append(text.substring(last, m.range.first))
         val g = m.groupValues
+        when {
             g[1].isNotEmpty() -> pushStyle(
                 SpanStyle(
                     fontFamily = s.mono,
