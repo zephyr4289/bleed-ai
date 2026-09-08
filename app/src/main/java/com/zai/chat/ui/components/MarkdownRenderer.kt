@@ -100,7 +100,7 @@ private fun parseBlocks(markdown: String): List<Block> {
                 }
                 blocks += Block.Quote(quote)
             }
-            line.trimStart().startsWith("|") && line.contains("|", 2) -> {
+            line.trimStart().startsWith("|") && line.indexOf("|", startIndex = 2) != -1 -> {
                 flushParagraph()
                 val table = mutableListOf<String>()
                 while (i < lines.size && lines[i].trimStart().startsWith("|")) {
