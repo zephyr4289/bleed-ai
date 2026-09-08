@@ -40,25 +40,20 @@ object ZaiConfig {
     const val REFERER: String = "https://chat.z.ai/"
 
     /**
-     * [RECON] Frontend version header. Key/value pair captured from browser
-     * DevTools. z.ai rotates this; a stale value may trigger 403s.
-     * Set KEY to "" to disable sending the header entirely.
+     * Frontend version header captured from live bundle assets.
      */
     const val FE_VERSION_HEADER_KEY: String = "X-FE-Version"
-    const val FE_VERSION_HEADER_VALUE: String = "prod-20241015-v1"
+    const val FE_VERSION_HEADER_VALUE: String = "prod-fe-1.1.93"
 
     /**
-     * [RECON] HMAC salt if the frontend signs requests. Null = unsigned.
-     * Chat.z.ai is not currently known to sign; revisit if P12 shows a
-     * 'sign'/'signature' header in the captured request.
+     * HMAC salt deobfuscated from live frontend bundle.
      */
-    val SIGN_SALT: String? = null
+    val SIGN_SALT: String? = "key-@@@@)))()((9))-xxxx&&&%%%%%"
 
     /**
-     * [RECON] Exact model string from the browser's POST body.
-     * The web UI's default at time of writing; P12 confirms the current one.
+     * Default model identifier from live frontend.
      */
-    const val MODEL_DEFAULT: String = "glm-5.3"
+    const val MODEL_DEFAULT: String = "GLM-5.3-Flash"
 
     // ── Timeouts ─────────────────────────────────────────────────────
     const val CONNECT_TIMEOUT_SECONDS: Long = 30L

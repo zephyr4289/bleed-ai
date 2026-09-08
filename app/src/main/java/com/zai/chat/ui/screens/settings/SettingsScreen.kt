@@ -47,9 +47,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.webkit.CookieManager
+import android.widget.Toast
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import com.zai.chat.config.ZaiConfig
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
@@ -204,6 +212,9 @@ fun SettingsScreen(
 
             // ── Session ──────────────────────────────────────────────────
             SettingsSection(title = "Session") {
+                val context = LocalContext.current
+                val clipboardManager = LocalClipboardManager.current
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -211,14 +222,33 @@ fun SettingsScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Session Status",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                    )
+                    Column {
+                        Text(
+                            text = "Session Status",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                        )
+                        if (hasSession) {
+                            Text(
+                                text = "Long press badge to copy token",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                     Surface(
                         color = if (hasSession) MaterialTheme.colorScheme.primaryContainer
                         else MaterialTheme.colorScheme.errorContainer,
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.combinedClickable(
+                            onClick = {},
+                            onLongClick = {
+                                val token = viewModel.getStoredToken()
+                                if (token != null) {
+                                    clipboardManager.setText(AnnotatedString(token))
+                                    Toast.makeText(context, "Token copied to clipboard", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        )
                     ) {
                         Text(
                             text = if (hasSession) "Active" else "Missing",
@@ -233,7 +263,7 @@ fun SettingsScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     OutlinedButton(
@@ -252,6 +282,43 @@ fun SettingsScreen(
                         modifier = Modifier.weight(1f)
                     ) {
                         Text("Clear Session")
+                    }
+                }
+
+                if (hasSession) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        TextButton(
+                            onClick = {
+                                val token = viewModel.getStoredToken()
+                                if (token != null) {
+                                    clipboardManager.setText(AnnotatedString(token))
+                                    Toast.makeText(context, "Token copied to clipboard", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Copy Token", style = MaterialTheme.typography.labelMedium)
+                        }
+
+                        TextButton(
+                            onClick = {
+                                val cookies = CookieManager.getInstance().getCookie(ZaiConfig.BASE_URL)
+                                if (!cookies.isNullOrEmpty()) {
+                                    clipboardManager.setText(AnnotatedString(cookies))
+                                    Toast.makeText(context, "Cookies copied to clipboard", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "No cookies found", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Copy Cookies", style = MaterialTheme.typography.labelMedium)
+                        }
                     }
                 }
             }

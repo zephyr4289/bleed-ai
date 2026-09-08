@@ -29,12 +29,32 @@ class AuthInterceptor @Inject constructor(
             .header("Origin", ZaiConfig.ORIGIN)
             .header("Referer", ZaiConfig.REFERER)
 
+        builder.header("Accept-Language", "en-US")
+
         // P1 design: empty key = header disabled
         if (ZaiConfig.FE_VERSION_HEADER_KEY.isNotEmpty()) {
             builder.header(
                 ZaiConfig.FE_VERSION_HEADER_KEY,
                 ZaiConfig.FE_VERSION_HEADER_VALUE
             )
+        }
+
+        ZaiConfig.SIGN_SALT?.let { salt ->
+            val timestamp = System.currentTimeMillis()
+            val window = timestamp / (5 * 60 * 1000)
+            try {
+                val mac1 = javax.crypto.Mac.getInstance("HmacSHA256")
+                mac1.init(javax.crypto.spec.SecretKeySpec(salt.toByteArray(Charsets.UTF_8), "HmacSHA256"))
+                val round1Key = mac1.doFinal(window.toString().toByteArray(Charsets.UTF_8))
+
+                val mac2 = javax.crypto.Mac.getInstance("HmacSHA256")
+                mac2.init(javax.crypto.spec.SecretKeySpec(round1Key, "HmacSHA256"))
+                val signatureBytes = mac2.doFinal(timestamp.toString().toByteArray(Charsets.UTF_8))
+                val signature = signatureBytes.joinToString("") { "%02x".format(it) }
+                builder.header("X-Signature", signature)
+            } catch (_: Exception) {
+                // Fallback gracefully if crypto provider error occurs
+            }
         }
 
         tokenManager.getStoredToken()?.let { token ->

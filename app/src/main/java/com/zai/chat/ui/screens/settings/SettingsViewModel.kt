@@ -49,6 +49,8 @@ class SettingsViewModel @Inject constructor(
         tokenManager.clearToken()
     }
 
+    fun getStoredToken(): String? = tokenManager.getStoredToken()
+
     fun clearLocalCache() {
         viewModelScope.launch { repository.clearLocalCache() }
     }
