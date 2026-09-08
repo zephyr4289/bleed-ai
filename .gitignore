@@ -9,3 +9,4 @@ captures/
 .cxx/
 recon/
 *.env
+logs/

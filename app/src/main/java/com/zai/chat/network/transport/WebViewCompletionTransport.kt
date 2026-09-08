@@ -32,7 +32,7 @@ private data class BridgeEnvelope(
     val v: Int = 1,
     val t: String = "",
     val text: String = "",
-    val code: Int = 0,
+    val code: String = "",
     val msg: String = "",
     val partialContent: String = "",
     val partialReasoning: String = "",
@@ -158,7 +158,7 @@ class WebViewCompletionTransport @Inject constructor(
                     }
                     "error" -> {
                         Log.e("BleedAI-Transport", "Stream error received: code=${envelope.code}, msg=${envelope.msg}")
-                        if (envelope.code == 401) {
+                        if (envelope.code == "401") {
                             authEventManager.emitTokenExpired()
                         }
                         emit(

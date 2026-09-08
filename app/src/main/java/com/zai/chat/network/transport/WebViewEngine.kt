@@ -36,7 +36,7 @@ class WebViewEngine @Inject constructor(
     private val initMutex = Mutex()
     private var isBootstrapped = false
 
-    private val pageFinishedDeferred = CompletableDeferred<Unit>()
+    private var pendingPageLoadDeferred: CompletableDeferred<Unit>? = null
 
     // Event channel for SSE stream bridge
     val eventChannel = Channel<String>(Channel.UNLIMITED)
@@ -56,6 +56,8 @@ class WebViewEngine @Inject constructor(
 
             try {
                 Log.i("BleedAI-WebView", "ensureReady: Initializing headless WebView runtime...")
+                val token = tokenManager.getStoredToken()
+
                 if (webView == null) {
                     val view = WebView(context).apply {
                         settings.javaScriptEnabled = true
@@ -85,9 +87,8 @@ class WebViewEngine @Inject constructor(
                             override fun onPageFinished(view: WebView?, url: String?) {
                                 super.onPageFinished(view, url)
                                 Log.i("BleedAI-WebView", "onPageFinished: $url")
-                                if (!pageFinishedDeferred.isCompleted) {
-                                    pageFinishedDeferred.complete(Unit)
-                                }
+                                view?.evaluateJavascript(TransportScripts.CAPTCHA_HOOK_JS, null)
+                                pendingPageLoadDeferred?.complete(Unit)
                             }
 
                             override fun onReceivedError(
@@ -101,19 +102,23 @@ class WebViewEngine @Inject constructor(
                         }
                     }
                     webView = view
-                    view.loadUrl(ZaiConfig.BASE_URL)
+
+                    // First page load to establish domain context
+                    loadUrlAndWait(ZaiConfig.BASE_URL, 10000L)
                 }
 
-                // Wait for initial page load (up to 10s)
-                withTimeoutOrNull(10000L) {
-                    pageFinishedDeferred.await()
-                }
-
-                // Inject token from TokenManager
-                tokenManager.getStoredToken()?.let { token ->
+                // If token exists, inject it and reload SPA so it boots authenticated
+                if (!token.isNullOrBlank()) {
                     Log.d("BleedAI-WebView", "Injecting auth token into WebView localStorage...")
                     eval(TransportScripts.injectAuthJs(token))
+
+                    // Reload page to let SPA boot in authenticated mode with captcha initialized
+                    Log.i("BleedAI-WebView", "Reloading SPA with token in localStorage...")
+                    loadUrlAndWait(ZaiConfig.BASE_URL, 10000L)
                 }
+
+                // Inject captcha & fetch hooks
+                eval(TransportScripts.CAPTCHA_HOOK_JS)
 
                 // Verify ready probe
                 val ready = eval(TransportScripts.READY_PROBE_JS)
@@ -124,6 +129,15 @@ class WebViewEngine @Inject constructor(
                 Log.e("BleedAI-WebView", "ensureReady failed: ${e.message}", e)
                 false
             }
+        }
+    }
+
+    private suspend fun loadUrlAndWait(url: String, timeoutMs: Long) {
+        val deferred = CompletableDeferred<Unit>()
+        pendingPageLoadDeferred = deferred
+        webView?.loadUrl(url)
+        withTimeoutOrNull(timeoutMs) {
+            deferred.await()
         }
     }
 
@@ -148,10 +162,11 @@ class WebViewEngine @Inject constructor(
     suspend fun reloadEngine() = withContext(Dispatchers.Main) {
         initMutex.withLock {
             isBootstrapped = false
-            webView?.loadUrl(ZaiConfig.BASE_URL)
             tokenManager.getStoredToken()?.let { token ->
                 eval(TransportScripts.injectAuthJs(token))
             }
+            loadUrlAndWait(ZaiConfig.BASE_URL, 10000L)
+            eval(TransportScripts.CAPTCHA_HOOK_JS)
         }
     }
 }
