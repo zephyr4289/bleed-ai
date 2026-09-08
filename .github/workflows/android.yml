@@ -55,11 +55,10 @@ jobs:
         if: failure()
         run: |
           git config user.name "CI Bot"
-          git config user.email "bot@example.com"
           git checkout -B ci-failure-log
-          tail -n 250 build_output.log > ci_build_error.txt
+          cp build_output.log ci_build_error.txt
           git add -f ci_build_error.txt
-          git commit -m "CI failure: $(grep -E 'e: ' build_output.log | head -n 2 || echo 'build failed')"
+          git commit -m "CI failure log"
           git push -f origin ci-failure-log
 
       - name: Upload Debug APK Artifact

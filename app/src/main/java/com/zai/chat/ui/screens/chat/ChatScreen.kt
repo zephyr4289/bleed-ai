@@ -197,6 +197,7 @@ fun ChatScreen(
                         .padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
+                ) {
                     Image(
                         painter = painterResource(id = R.drawable.ic_bleed_ai_logo),
                         contentDescription = "Bleed-AI",
