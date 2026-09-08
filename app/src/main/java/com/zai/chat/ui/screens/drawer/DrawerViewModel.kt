@@ -25,7 +25,9 @@ data class DrawerUiState(
     val chats: List<Chat> = emptyList(),
     val query: String = "",
     val searchResults: List<Message> = emptyList()
-)
+) {
+    val searchQuery: String get() = query
+}
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -73,6 +75,8 @@ class DrawerViewModel @Inject constructor(
         _uiState.update { it.copy(query = q) }
         queryFlow.value = q
     }
+
+    fun onSearchQueryChanged(q: String) = onQueryChanged(q)
 
     fun clearQuery() = onQueryChanged("")
 

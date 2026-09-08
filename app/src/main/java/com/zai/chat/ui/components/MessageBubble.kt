@@ -4,14 +4,19 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.view.HapticFeedbackConstants
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,12 +27,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AttachFile
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.ForkRight
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.ButtonDefaults
@@ -44,23 +51,28 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.zai.chat.data.model.FileAttachment
 import com.zai.chat.data.model.Message
 import com.zai.chat.data.model.MessageRole
-import com.zai.chat.ui.theme.ShapeBubbleUser
-import com.zai.chat.ui.theme.UserBubbleFillDark
+import com.zai.chat.ui.theme.BorderAmbient
+import com.zai.chat.ui.theme.GlassIslandBackground
+import com.zai.chat.ui.theme.QuantumCyan
+import com.zai.chat.ui.theme.SurfaceActive
+import com.zai.chat.ui.theme.SurfaceRaised
+import com.zai.chat.ui.theme.TextPrimary
+import com.zai.chat.ui.theme.TextSecondary
+import com.zai.chat.ui.theme.TextTertiary
 
 /**
- * One message. User = right pill (plain text — input is literal).
- * Assistant = edge-to-edge document flow: Thinking → Markdown → Citations
- * → partial-retry, with tap/long-press action reveal.
- *
- * Contracts with P7:
- *  - onRegenerate = "regenerate THIS assistant message" (delete onward + restream)
- *  - onEditAndResend = message content goes into P7's edit dialog first
+ * Editorial document layout for model responses paired with organic asymmetric user bubbles and a
+ * glassmorphic floating action island.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -73,8 +85,10 @@ fun MessageBubble(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    var showActions by remember { mutableStateOf(false) }
+    val view = LocalView.current
+    var showActionIsland by remember { mutableStateOf(false) }
     val isUser = message.role == MessageRole.USER
+    val userShape = RoundedCornerShape(topStart = 18.dp, topEnd = 4.dp, bottomStart = 18.dp, bottomEnd = 18.dp)
 
     Column(
         modifier = modifier
@@ -92,19 +106,25 @@ fun MessageBubble(
                     Spacer(Modifier.height(4.dp))
                 }
                 Surface(
-                    shape = ShapeBubbleUser,
-                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = userShape,
+                    color = SurfaceRaised,
                     modifier = Modifier
+                        .specularBorder(userShape)
                         .combinedClickable(
-                            onClick = { showActions = !showActions },
-                            onLongClick = { showActions = true }
+                            onClick = {
+                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                showActionIsland = !showActionIsland
+                            },
+                            onLongClick = {
+                                view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                                showActionIsland = true
+                            }
                         )
                 ) {
                     Text(
                         text = message.content,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                        style = MaterialTheme.typography.bodyLarge.copy(color = TextPrimary),
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                     )
                 }
             }
@@ -113,30 +133,60 @@ fun MessageBubble(
                 modifier = Modifier
                     .fillMaxWidth()
                     .combinedClickable(
-                        onClick = { showActions = !showActions },
-                        onLongClick = { showActions = true }
+                        onClick = {
+                            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                            showActionIsland = !showActionIsland
+                        },
+                        onLongClick = {
+                            view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                            showActionIsland = true
+                        }
                     )
             ) {
                 if (message.attachments.isNotEmpty()) {
                     AttachmentChipsRow(attachments = message.attachments)
                     Spacer(Modifier.height(6.dp))
                 }
-                // 1. Thinking (also when content hasn't started yet)
-                if (!message.reasoning.isNullOrEmpty()) {
-                    ThinkingBlock(
-                        reasoningText = message.reasoning,
-                        isStreamingReasoning = isStreaming && message.content.isEmpty(),
-                        modifier = Modifier.padding(bottom = 10.dp)
+
+                // Identity Bar
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(QuantumCyan)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "INTELLIGENCE CORE",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.8.sp,
+                            color = QuantumCyan
+                        )
                     )
                 }
-                // 2. Document body (selectable) — empty while only thinking
+
+                // 1. Thinking Accordion
+                if (!message.reasoning.isNullOrBlank()) {
+                    ThinkingBlock(
+                        reasoningText = message.reasoning,
+                        isStreaming = isStreaming && message.content.isEmpty()
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
+
+                // 2. Document Body Content
                 if (message.content.isNotEmpty()) {
                     SelectionContainer {
                         MarkdownText(
                             markdown = message.content,
                             isStreaming = isStreaming,
                             style = MaterialTheme.typography.bodyLarge.copy(
-                                color = MaterialTheme.colorScheme.onBackground
+                                color = TextPrimary
                             )
                         )
                     }
@@ -144,14 +194,16 @@ fun MessageBubble(
                     Text(
                         text = "…",
                         style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = TextSecondary
                     )
                 }
-                // 3. Citations
+
+                // 3. Web Citations Strip
                 if (message.citations.isNotEmpty()) {
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                     WebCitationStrip(citations = message.citations)
                 }
+
                 // 4. Inline retry on interrupted stream
                 if (message.isPartial && !isStreaming) {
                     Spacer(Modifier.height(8.dp))
@@ -173,72 +225,92 @@ fun MessageBubble(
             }
         }
 
-        // Action reveal
-        AnimatedVisibility(visible = showActions, enter = fadeIn() + scaleIn()) {
-            Row(
-                modifier = Modifier.padding(top = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(2.dp)
+        // Floating Specular Action Island
+        AnimatedVisibility(
+            visible = showActionIsland,
+            enter = fadeIn() + scaleIn(initialScale = 0.94f),
+            exit = fadeOut() + scaleOut(targetScale = 0.94f)
+        ) {
+            val islandShape = RoundedCornerShape(20.dp)
+            Surface(
+                shape = islandShape,
+                color = GlassIslandBackground,
+                modifier = Modifier
+                    .padding(top = 8.dp)
+                    .specularBorder(islandShape)
             ) {
-                IconButton(
-                    onClick = {
-                        val clipboard =
-                            context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        clipboard.setPrimaryClip(
-                            ClipData.newPlainText("Message", message.content)
-                        )
-                        Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
-                        showActions = false
-                    },
-                    modifier = Modifier.size(32.dp)
+                Row(
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.ContentCopy,
-                        contentDescription = "Copy",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-                IconButton(
-                    onClick = {
-                        val intent = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, message.content)
-                        }
-                        context.startActivity(Intent.createChooser(intent, "Share"))
-                        showActions = false
-                    },
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Share,
-                        contentDescription = "Share",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-                if (isUser && onEditAndResend != null) {
                     IconButton(
-                        onClick = { onEditAndResend(message); showActions = false },
+                        onClick = {
+                            val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            cm.setPrimaryClip(ClipData.newPlainText("Message Content", message.content))
+                            view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                            Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
+                            showActionIsland = false
+                        },
                         modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.Edit,
-                            contentDescription = "Edit and resend",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(16.dp)
+                            Icons.Rounded.ContentCopy,
+                            contentDescription = "Copy",
+                            tint = TextSecondary,
+                            modifier = Modifier.size(15.dp)
                         )
                     }
-                } else if (!isUser && !isStreaming && onRegenerate != null) {
+
                     IconButton(
-                        onClick = { onRegenerate(); showActions = false },
+                        onClick = {
+                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, message.content)
+                            }
+                            context.startActivity(Intent.createChooser(shareIntent, "Share"))
+                            showActionIsland = false
+                        },
                         modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.Refresh,
-                            contentDescription = "Regenerate",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(16.dp)
+                            Icons.Rounded.Share,
+                            contentDescription = "Share",
+                            tint = TextSecondary,
+                            modifier = Modifier.size(15.dp)
                         )
+                    }
+
+                    if (isUser) {
+                        IconButton(
+                            onClick = {
+                                onEditAndResend?.invoke(message)
+                                showActionIsland = false
+                            },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                Icons.Rounded.Edit,
+                                contentDescription = "Edit and resend",
+                                tint = TextSecondary,
+                                modifier = Modifier.size(15.dp)
+                            )
+                        }
+                    } else if (!isStreaming) {
+                        IconButton(
+                            onClick = {
+                                onRegenerate?.invoke()
+                                showActionIsland = false
+                            },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                Icons.Rounded.Refresh,
+                                contentDescription = "Regenerate",
+                                tint = TextSecondary,
+                                modifier = Modifier.size(15.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -257,9 +329,11 @@ private fun AttachmentChipsRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         attachments.forEach { attachment ->
+            val shape = RoundedCornerShape(8.dp)
             Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant
+                shape = shape,
+                color = SurfaceRaised,
+                modifier = Modifier.specularBorder(shape)
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -269,12 +343,12 @@ private fun AttachmentChipsRow(
                         imageVector = Icons.Rounded.AttachFile,
                         contentDescription = null,
                         modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = QuantumCyan
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
                         text = attachment.name,
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.labelSmall.copy(color = TextSecondary),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )

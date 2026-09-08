@@ -55,8 +55,20 @@ object ZaiConfig {
      */
     const val MODEL_DEFAULT: String = "glm-5.3"
 
+    // ── Transport mode ────────────────────────────────────────────────
+    /**
+     * "webview": Zone 2 Dual-Transport (handles Alibaba Cloud Captcha + session in headless runtime)
+     * "okhttp": Direct native OkHttp completion transport
+     */
+    const val COMPLETIONS_TRANSPORT: String = "webview"
+
+    // ── DOM selectors for fallback / automation ──────────────────────
+    const val DOM_TEXTAREA_SELECTOR: String = "textarea, [contenteditable='true']"
+    const val DOM_SEND_BUTTON_SELECTOR: String = "button[type='submit'], button[aria-label*='Send']"
+
     // ── Timeouts ─────────────────────────────────────────────────────
     const val CONNECT_TIMEOUT_SECONDS: Long = 30L
     const val READ_TIMEOUT_SECONDS: Long = 120L   // long: SSE streams stay open
     const val WRITE_TIMEOUT_SECONDS: Long = 60L
 }
+

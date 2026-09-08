@@ -7,30 +7,45 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntSize
 
 /**
- * Custom Moonshot/Kimi Spring Motion Specifications.
- * Zero default linear/cubic tweens; everything is spring physics.
+ * Bleed-AI Continuous Spring Motion Specifications.
+ * Zero default linear/cubic tweens; every interaction is driven by continuous spring physics.
  */
-object ZaiMotion {
-    // Flowy, bouncy spring for drawer and modal interactions
-    val FluidSpring: SpringSpec<Float> = spring(
-        dampingRatio = Spring.DampingRatioLowBouncy,
-        stiffness = Spring.StiffnessLow
+object BleedMotion {
+    val PressScaleSpring: SpringSpec<Float> = spring(
+        dampingRatio = 0.75f,
+        stiffness = 600f
     )
 
-    // Snappy spring for button morphs and state switches
-    val MorphSpring: SpringSpec<Float> = spring(
-        dampingRatio = Spring.DampingRatioNoBouncy,
-        stiffness = Spring.StiffnessMediumLow
+    val FluidNavigationSpring: SpringSpec<Float> = spring(
+        dampingRatio = 0.82f,
+        stiffness = 300f
+    )
+
+    val PanelExpandSpring: SpringSpec<Float> = spring(
+        dampingRatio = 0.88f,
+        stiffness = 220f
+    )
+
+    val PanelExpandIntSizeSpring: SpringSpec<IntSize> = spring(
+        dampingRatio = 0.88f,
+        stiffness = 220f
+    )
+
+    val CheckmarkPopSpring: SpringSpec<Float> = spring(
+        dampingRatio = Spring.DampingRatioMediumBouncy,
+        stiffness = 500f
     )
 
     val ColorMorphSpring: SpringSpec<Color> = spring(
         dampingRatio = Spring.DampingRatioNoBouncy,
         stiffness = Spring.StiffnessMediumLow
     )
-
-    // Gentle spring for thinking expansion panel
-    val PanelExpandSpring: SpringSpec<IntSize> = spring(
-        dampingRatio = 0.85f,
-        stiffness = 250f
-    )
 }
+
+object ZaiMotion {
+    val FluidSpring: SpringSpec<Float> = BleedMotion.FluidNavigationSpring
+    val MorphSpring: SpringSpec<Float> = BleedMotion.PressScaleSpring
+    val ColorMorphSpring: SpringSpec<Color> = BleedMotion.ColorMorphSpring
+    val PanelExpandSpring: SpringSpec<IntSize> = BleedMotion.PanelExpandIntSizeSpring
+}
+

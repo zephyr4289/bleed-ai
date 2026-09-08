@@ -16,6 +16,7 @@ import com.zai.chat.network.model.ChatCompletionRequest
 import com.zai.chat.network.model.RequestMessage
 import com.zai.chat.network.model.linearizeChatHistory
 import com.zai.chat.network.sse.StreamEvent
+import com.zai.chat.network.transport.CompletionTransport
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -32,6 +33,7 @@ import javax.inject.Singleton
 @Singleton
 class ChatRepositoryImpl @Inject constructor(
     private val apiService: ZaiApiService,
+    private val completionTransport: CompletionTransport,
     private val chatDao: ChatDao,
     private val messageDao: MessageDao,
     private val json: Json
@@ -224,7 +226,7 @@ class ChatRepositoryImpl @Inject constructor(
         var citations: List<SearchCitation> = emptyList()
         var tokens = 0
 
-        apiService.streamChatCompletion(request).collect { event ->
+        completionTransport.stream(request).collect { event ->
             when (event) {
                 is StreamEvent.ReasoningDelta -> {
                     reasoning.append(event.text)

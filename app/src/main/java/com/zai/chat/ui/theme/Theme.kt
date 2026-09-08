@@ -10,17 +10,24 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 
 private val DarkColorScheme = darkColorScheme(
-    primary = ClaudePeach,
-    onPrimary = TrueBlack,
-    primaryContainer = ClaudePeachContainerDark,
+    primary = RadiantAmber,
+    onPrimary = CanvasPureBlack,
+    primaryContainer = RadiantAmberContainer,
     onPrimaryContainer = ClaudePeachOnContainerDark,
-    surface = ObsidianBase,
-    onSurface = TextPrimaryDark,
-    surfaceVariant = SurfaceContainerDark,
-    onSurfaceVariant = TextSecondaryDark,
-    outline = BorderSubtleDark,
-    background = TrueBlack,
-    onBackground = TextPrimaryDark
+    secondary = QuantumCyan,
+    onSecondary = CanvasPureBlack,
+    secondaryContainer = QuantumCyanContainer,
+    surface = SurfaceBase,
+    onSurface = TextPrimary,
+    surfaceVariant = SurfaceRaised,
+    onSurfaceVariant = TextSecondary,
+    outline = BorderAmbient,
+    background = MidnightObsidian,
+    onBackground = TextPrimary,
+    error = CrimsonFlare,
+    errorContainer = CrimsonFlareGlow,
+    onError = TextPrimary,
+    onErrorContainer = CrimsonFlare
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -28,13 +35,15 @@ private val LightColorScheme = lightColorScheme(
     onPrimary = PureWhite,
     primaryContainer = ClaudePeachContainerLight,
     onPrimaryContainer = ClaudePeachOnContainerLight,
+    secondary = QuantumCyan,
     surface = SurfaceLight,
     onSurface = TextPrimaryLight,
     surfaceVariant = SurfaceContainerLight,
     onSurfaceVariant = TextSecondaryLight,
     outline = BorderSubtleLight,
     background = PureWhite,
-    onBackground = TextPrimaryLight
+    onBackground = TextPrimaryLight,
+    error = CrimsonFlare
 )
 
 @Composable
@@ -50,7 +59,7 @@ fun ZaiTheme(
     }
 
     val colorScheme = if (isDark) {
-        val bg = if (themeMode == "OLED") TrueBlack else ObsidianBase
+        val bg = if (themeMode == "OLED") CanvasPureBlack else MidnightObsidian
         DarkColorScheme.copy(background = bg)
     } else {
         LightColorScheme
@@ -66,8 +75,9 @@ fun ZaiTheme(
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
-            typography = ZaiTypography,
+            typography = BleedAiTypography,
             content = content
         )
     }
 }
+

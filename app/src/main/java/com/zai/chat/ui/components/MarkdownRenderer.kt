@@ -5,15 +5,26 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Lightbulb
+import androidx.compose.material.icons.rounded.ReportProblem
+import androidx.compose.material.icons.rounded.Warning
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -27,28 +38,46 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.zai.chat.ui.theme.ShapeCodeBlock
+import com.zai.chat.ui.theme.BorderAmbient
+import com.zai.chat.ui.theme.CrimsonFlare
+import com.zai.chat.ui.theme.EmeraldPulse
+import com.zai.chat.ui.theme.QuantumCyan
+import com.zai.chat.ui.theme.RadiantAmber
+import com.zai.chat.ui.theme.SurfaceActive
+import com.zai.chat.ui.theme.SurfaceBase
+import com.zai.chat.ui.theme.SurfaceRaised
+import com.zai.chat.ui.theme.SyntaxBackground
+import com.zai.chat.ui.theme.TextPrimary
+import com.zai.chat.ui.theme.TextSecondary
+import com.zai.chat.ui.theme.TextTertiary
 
 /*
  * ── BLOCK MODEL ────────────────────────────────────────────────────────
- * Line-based block parser: fences, headings, quotes, lists, rules, tables
- * (monospace fallback), paragraphs. Deliberately no nested-list recursion
- * beyond indent levels and no GFM table grids — chat output rarely needs
- * them; degrade visibly rather than crash or mis-render.
+ * Line-based block parser: fences, headings, quotes/callouts, lists, rules, tables, paragraphs.
  */
 private sealed class Block {
     data class Paragraph(val text: String) : Block()
     data class Heading(val level: Int, val text: String) : Block()
     data class Code(val language: String, val code: String, val closed: Boolean) : Block()
+    data class Callout(val type: CalloutType, val title: String, val lines: List<String>) : Block()
     data class Quote(val lines: List<String>) : Block()
     data class ListItem(val indent: Int, val marker: String, val text: String) : Block()
     data object Rule : Block()
     data class TableFallback(val lines: List<String>) : Block()
 }
 
+private enum class CalloutType(val color: Color, val defaultTitle: String) {
+    NOTE(QuantumCyan, "NOTE"),
+    TIP(EmeraldPulse, "TIP"),
+    IMPORTANT(RadiantAmber, "IMPORTANT"),
+    WARNING(RadiantAmber, "WARNING"),
+    CAUTION(CrimsonFlare, "CAUTION")
+}
+
 private val listItemRegex = Regex("""^(\s*)([-*+]|\d+\.)\s+(.*)$""")
 private val hrRegex = Regex("""^\s*([-*_])\s*(\1\s*){2,}$""")
 private val fenceRegex = Regex("""^\s*```\s*(\S*)""")
+private val calloutHeaderRegex = Regex("""^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\](?:\s+(.*))?$""", RegexOption.IGNORE_CASE)
 
 private fun parseBlocks(markdown: String): List<Block> {
     val blocks = mutableListOf<Block>()
@@ -77,12 +106,7 @@ private fun parseBlocks(markdown: String): List<Block> {
                     if (fenceRegex.matches(lines[i])) { closed = true; i++; break }
                     code.appendLine(lines[i]); i++
                 }
-                // Streaming: unterminated fence still renders (live code)
-                blocks += Block.Code(
-                    language,
-                    code.toString().trimEnd('\n'),
-                    closed
-                )
+                blocks += Block.Code(language, code.toString().trimEnd('\n'), closed)
             }
             line.startsWith("#") -> {
                 flushParagraph()
@@ -93,12 +117,28 @@ private fun parseBlocks(markdown: String): List<Block> {
             hrRegex.matches(line) -> { flushParagraph(); blocks += Block.Rule; i++ }
             line.trimStart().startsWith(">") -> {
                 flushParagraph()
-                val quote = mutableListOf<String>()
+                val quoteLines = mutableListOf<String>()
                 while (i < lines.size && lines[i].trimStart().startsWith(">")) {
-                    quote += lines[i].trimStart().removePrefix(">").removePrefix(" ").trimStart()
+                    quoteLines += lines[i].trimStart().removePrefix(">").removePrefix(" ").trimStart()
                     i++
                 }
-                blocks += Block.Quote(quote)
+                // Check if first line is a callout header e.g. [!NOTE]
+                val firstLine = quoteLines.firstOrNull().orEmpty().trim()
+                val calloutMatch = calloutHeaderRegex.find(firstLine)
+                if (calloutMatch != null) {
+                    val rawType = calloutMatch.groupValues[1].uppercase()
+                    val cType = when (rawType) {
+                        "TIP" -> CalloutType.TIP
+                        "IMPORTANT" -> CalloutType.IMPORTANT
+                        "WARNING" -> CalloutType.WARNING
+                        "CAUTION" -> CalloutType.CAUTION
+                        else -> CalloutType.NOTE
+                    }
+                    val customTitle = calloutMatch.groupValues[2].ifBlank { cType.defaultTitle }
+                    blocks += Block.Callout(cType, customTitle, quoteLines.drop(1))
+                } else {
+                    blocks += Block.Quote(quoteLines)
+                }
             }
             line.trimStart().startsWith("|") && line.indexOf("|", startIndex = 2) != -1 -> {
                 flushParagraph()
@@ -127,16 +167,14 @@ private fun parseBlocks(markdown: String): List<Block> {
 
 /*
  * ── INLINE MODEL ───────────────────────────────────────────────────────
- * Single alternation regex: code > link > bold > italic (priority by order).
- * Known limits (accepted): no nested ***bold-italic*** merging, no \* escapes.
  */
 private val inlineRegex = Regex(
-    "`([^`\\n]+?)`" +                                  // g1 code
-    "|\\[([^]\\n]+)]\\((https?://[^)\\s]+)\\)" +       // g2 label, g3 url
-    "|\\*\\*(.+?)\\*\\*" +                             // g4 bold
-    "|__(.+?)__" +                                     // g5 bold
-    "|(?<![*\\w])\\*([^*\\n]+?)\\*(?![*\\w])" +        // g6 italic
-    "|(?<![_\\w])_([^_\\n]+?)_(?![\\w_])"              // g7 italic
+    "`([^`\\n]+?)`" +
+    "|\\[([^]\\n]+)]\\((https?://[^)\\s]+)\\)" +
+    "|\\*\\*(.+?)\\*\\*" +
+    "|__(.+?)__" +
+    "|(?<![*\\w])\\*([^*\\n]+?)\\*(?![*\\w])" +
+    "|(?<![_\\w])_([^_\\n]+?)_(?![\\w_])"
 )
 
 private val bareUrlRegex = Regex("""(https?://[^\s<>()\[\]{}]+[^\s<>()\[\]{}.,;:!?])""")
@@ -162,8 +200,8 @@ private fun AnnotatedString.Builder.appendInline(
                     fontFamily = s.mono,
                     background = s.codeBg,
                     color = s.linkColor,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 14.sp
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.5.sp
                 )
             ).also { append(" ${g[1]} "); pop() }
             g[2].isNotEmpty() -> {
@@ -171,9 +209,9 @@ private fun AnnotatedString.Builder.appendInline(
                 append(g[2])
                 pop()
             }
-            g[4].isNotEmpty() -> pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                .also { appendInline(g[4], s); pop() }   // recurse: bold+inline-code
-            g[5].isNotEmpty() -> pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
+            g[4].isNotEmpty() -> pushStyle(SpanStyle(fontWeight = FontWeight.Bold, color = TextPrimary))
+                .also { appendInline(g[4], s); pop() }
+            g[5].isNotEmpty() -> pushStyle(SpanStyle(fontWeight = FontWeight.Bold, color = TextPrimary))
                 .also { appendInline(g[5], s); pop() }
             g[6].isNotEmpty() -> pushStyle(SpanStyle(fontStyle = FontStyle.Italic))
                 .also { appendInline(g[6], s); pop() }
@@ -199,9 +237,7 @@ private fun AnnotatedString.Builder.appendInline(
 private const val CURSOR = "▍"
 
 /**
- * The renderer. [isStreaming] appends the cursor glyph to the final block
- * (inline for paragraphs, on its own line after code/lists — correct under
- * wrapping, unlike the PDF's floated composable).
+ * Editorial Markdown renderer with syntax highlighting, obsidian callouts, and specular tables.
  */
 @Composable
 fun MarkdownText(
@@ -215,8 +251,8 @@ fun MarkdownText(
     val blocks = remember(markdown) { parseBlocks(markdown) }
     val styles = Styles(
         base = style,
-        codeBg = MaterialTheme.colorScheme.surfaceVariant,
-        linkColor = MaterialTheme.colorScheme.primary,
+        codeBg = SurfaceActive,
+        linkColor = QuantumCyan,
         mono = FontFamily.Monospace
     )
 
@@ -228,23 +264,25 @@ fun MarkdownText(
                     val annotated = buildAnnotatedString {
                         appendInline(block.text, styles)
                         if (isStreaming && isLast) {
-                            pushStyle(SpanStyle(color = styles.linkColor))
-                            append(CURSOR); pop()
+                            pushStyle(SpanStyle(color = QuantumCyan, fontWeight = FontWeight.Bold))
+                            append(CURSOR)
+                            pop()
                         }
                     }
-                    Text(annotated, style = style)
+                    Text(annotated, style = style.copy(color = TextPrimary))
+                    Spacer(Modifier.height(6.dp))
                 }
                 is Block.Heading -> {
-                    val hStyle = when (block.level) {
-                        1 -> MaterialTheme.typography.headlineSmall
-                        2 -> MaterialTheme.typography.titleLarge
-                        3 -> MaterialTheme.typography.titleMedium
-                        else -> MaterialTheme.typography.titleSmall
-                    }.copy(fontWeight = FontWeight.SemiBold)
+                    val (hStyle, topPad) = when (block.level) {
+                        1 -> MaterialTheme.typography.headlineMedium to 14.dp
+                        2 -> MaterialTheme.typography.titleLarge to 12.dp
+                        3 -> MaterialTheme.typography.titleMedium to 8.dp
+                        else -> MaterialTheme.typography.titleSmall to 6.dp
+                    }
                     Text(
                         buildAnnotatedString { appendInline(block.text, styles) },
-                        style = hStyle,
-                        modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)
+                        style = hStyle.copy(fontWeight = FontWeight.Bold, color = TextPrimary),
+                        modifier = Modifier.padding(top = topPad, bottom = 4.dp)
                     )
                 }
                 is Block.Code -> {
@@ -257,8 +295,58 @@ fun MarkdownText(
                         modifier = Modifier.padding(vertical = 6.dp)
                     )
                 }
+                is Block.Callout -> {
+                    val shape = RoundedCornerShape(10.dp)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp)
+                            .clip(shape)
+                            .background(block.type.color.copy(alpha = 0.08f))
+                            .specularBorder(shape)
+                            .padding(12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            val icon = when (block.type) {
+                                CalloutType.TIP -> Icons.Rounded.Lightbulb
+                                CalloutType.IMPORTANT -> Icons.Rounded.ReportProblem
+                                CalloutType.WARNING -> Icons.Rounded.Warning
+                                CalloutType.CAUTION -> Icons.Rounded.Warning
+                                CalloutType.NOTE -> Icons.Rounded.Info
+                            }
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                tint = block.type.color,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = block.title,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.6.sp,
+                                    color = block.type.color
+                                )
+                            )
+                        }
+                        if (block.lines.isNotEmpty()) {
+                            Spacer(Modifier.height(6.dp))
+                            block.lines.forEach { line ->
+                                Text(
+                                    buildAnnotatedString { appendInline(line, styles) },
+                                    style = style.copy(fontSize = 14.sp, color = TextSecondary)
+                                )
+                            }
+                        }
+                    }
+                }
                 is Block.Quote -> {
-                    Row(Modifier.height(IntrinsicSize.Min).padding(vertical = 4.dp)) {
+                    Row(
+                        Modifier
+                            .height(IntrinsicSize.Min)
+                            .padding(vertical = 4.dp)
+                    ) {
                         Box(
                             Modifier
                                 .width(3.dp)
@@ -271,7 +359,7 @@ fun MarkdownText(
                                     buildAnnotatedString { appendInline(q, styles) },
                                     style = style.copy(
                                         fontStyle = FontStyle.Italic,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = TextSecondary
                                     )
                                 )
                             }
@@ -279,47 +367,52 @@ fun MarkdownText(
                     }
                 }
                 is Block.ListItem -> {
-                    Row(Modifier.padding(start = (4 + block.indent * 16).dp, top = 2.dp)) {
+                    Row(Modifier.padding(start = (4 + block.indent * 16).dp, top = 2.dp, bottom = 2.dp)) {
                         Text(
                             text = if (block.marker.firstOrNull()?.isDigit() == true)
                                 "${block.marker} " else "•  ",
-                            style = style.copy(color = styles.linkColor)
+                            style = style.copy(color = QuantumCyan, fontWeight = FontWeight.Bold)
                         )
                         Text(
                             buildAnnotatedString {
                                 appendInline(block.text, styles)
                                 if (isStreaming && isLast) {
-                                    pushStyle(SpanStyle(color = styles.linkColor))
-                                    append(CURSOR); pop()
+                                    pushStyle(SpanStyle(color = QuantumCyan, fontWeight = FontWeight.Bold))
+                                    append(CURSOR)
+                                    pop()
                                 }
                             },
-                            style = style
+                            style = style.copy(color = TextPrimary)
                         )
                     }
                 }
                 Block.Rule -> Box(
                     Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 8.dp)
+                        .padding(vertical = 10.dp)
                         .height(1.dp)
-                        .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
+                        .background(BorderAmbient)
                 )
                 is Block.TableFallback -> {
+                    val shape = RoundedCornerShape(10.dp)
                     Column(
                         Modifier
                             .fillMaxWidth()
                             .padding(vertical = 6.dp)
-                            .clip(ShapeCodeBlock)
-                            .background(styles.codeBg)
-                            .padding(10.dp)
+                            .clip(shape)
+                            .background(SyntaxBackground)
+                            .specularBorder(shape)
+                            .padding(12.dp)
                     ) {
-                        block.lines.forEach { row ->
+                        block.lines.forEachIndexed { rowIdx, row ->
                             Text(
                                 row,
                                 style = style.copy(
                                     fontFamily = FontFamily.Monospace,
                                     fontSize = 12.sp,
-                                    lineHeight = 16.sp
+                                    lineHeight = 17.sp,
+                                    color = if (rowIdx == 0) TextPrimary else TextSecondary,
+                                    fontWeight = if (rowIdx == 0) FontWeight.Bold else FontWeight.Normal
                                 )
                             )
                         }

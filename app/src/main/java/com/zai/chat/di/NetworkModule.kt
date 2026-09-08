@@ -45,4 +45,17 @@ object NetworkModule {
             .retryOnConnectionFailure(true)   // connect-phase retries; mid-stream failures surface as Error events
             .build()
     }
+
+    @Provides
+    @Singleton
+    fun provideCompletionTransport(
+        okHttpTransport: com.zai.chat.network.transport.OkHttpCompletionTransport,
+        webViewTransport: com.zai.chat.network.transport.WebViewCompletionTransport
+    ): com.zai.chat.network.transport.CompletionTransport {
+        return if (ZaiConfig.COMPLETIONS_TRANSPORT.equals("okhttp", ignoreCase = true)) {
+            okHttpTransport
+        } else {
+            webViewTransport
+        }
+    }
 }

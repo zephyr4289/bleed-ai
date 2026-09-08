@@ -6,45 +6,64 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-// Assistant responses use larger line-height (15-16sp with 24sp line height) for document reading rhythm
-val ZaiTypography = Typography(
+val BleedAiTypography = Typography(
+    headlineLarge = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.Bold,
+        fontSize = 28.sp,
+        lineHeight = 34.sp,
+        letterSpacing = (-0.5).sp,
+        color = TextPrimary
+    ),
     headlineMedium = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 24.sp,
-        lineHeight = 32.sp,
-        letterSpacing = (-0.2).sp
+        fontSize = 20.sp,
+        lineHeight = 26.sp,
+        letterSpacing = (-0.3).sp,
+        color = TextPrimary
     ),
     titleLarge = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.SemiBold,
         fontSize = 18.sp,
-        lineHeight = 24.sp
+        lineHeight = 24.sp,
+        letterSpacing = (-0.2).sp,
+        color = TextPrimary
     ),
     titleMedium = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Medium,
         fontSize = 15.sp,
-        lineHeight = 20.sp
+        lineHeight = 22.sp,
+        letterSpacing = (-0.1).sp,
+        color = TextPrimary
     ),
     bodyLarge = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Normal,
         fontSize = 16.sp,
-        lineHeight = 24.sp, // Optimized document reading rhythm
-        letterSpacing = 0.15.sp
+        lineHeight = 25.6.sp, // 1.6x editorial line-height
+        letterSpacing = 0.1.sp,
+        color = TextPrimary
     ),
     bodyMedium = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Normal,
         fontSize = 14.sp,
-        lineHeight = 20.sp
+        lineHeight = 21.sp,
+        letterSpacing = 0.05.sp,
+        color = TextSecondary
     ),
     labelSmall = TextStyle(
         fontFamily = FontFamily.Monospace,
         fontWeight = FontWeight.Medium,
-        fontSize = 11.sp,
-        lineHeight = 16.sp,
-        letterSpacing = 0.5.sp
+        fontSize = 10.5.sp,
+        lineHeight = 14.sp,
+        letterSpacing = 0.8.sp,
+        color = TextTertiary
     )
 )
+
+val ZaiTypography = BleedAiTypography
+
