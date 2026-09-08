@@ -63,6 +63,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -107,6 +112,8 @@ fun ChatScreen(
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsState()
+    val isInteractive by viewModel.signer.isInteractive.collectAsState()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val view = LocalView.current
@@ -197,7 +204,8 @@ fun ChatScreen(
                 onToggleDeepThinking = { viewModel.onEvent(ChatUiEvent.ToggleDeepThinking(it)) },
                 onSelectModel = { viewModel.onEvent(ChatUiEvent.SelectModel(it)) },
                 onAddAttachments = { viewModel.onEvent(ChatUiEvent.AddAttachments(it)) },
-                onRemoveAttachment = { viewModel.onEvent(ChatUiEvent.RemoveAttachment(it)) }
+                onRemoveAttachment = { viewModel.onEvent(ChatUiEvent.RemoveAttachment(it)) },
+                onUserComposing = { viewModel.onEvent(ChatUiEvent.UserComposing) }
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
@@ -431,6 +439,33 @@ fun ChatScreen(
                     onDismiss = { viewModel.onEvent(ChatUiEvent.DismissEdit) }
                 )
             }
+
+            // Permanent 1x1 hardware attachment. Guarantees V8 runtime prioritization.
+            if (!isInteractive) {
+                AndroidView(
+                    factory = { viewModel.signer.webView },
+                    modifier = Modifier
+                        .size(1.dp)
+                        .alpha(0.01f)
+                )
+            }
+        }
+    }
+
+    // Dynamic promotion to foreground when puzzle/slider challenge is requested
+    if (isInteractive) {
+        ModalBottomSheet(
+            onDismissRequest = { /* Require user to finish puzzle or cancel */ },
+            sheetState = sheetState,
+            containerColor = SurfaceRaised,
+            modifier = Modifier.fillMaxHeight(0.65f)
+        ) {
+            AndroidView(
+                factory = { viewModel.signer.webView },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(340.dp) // Exceeds Aliyun 320px bounding box constraint
+            )
         }
     }
 }

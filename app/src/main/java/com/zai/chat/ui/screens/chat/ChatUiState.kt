@@ -56,4 +56,5 @@ sealed interface ChatUiEvent {
     data class ScrolledStateChange(val isScrolledUp: Boolean) : ChatUiEvent
     data class AddAttachments(val uris: List<Uri>) : ChatUiEvent
     data class RemoveAttachment(val localId: String) : ChatUiEvent
+    data object UserComposing : ChatUiEvent
 }

@@ -49,13 +49,13 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideCompletionTransport(
-        okHttpTransport: com.zai.chat.network.transport.OkHttpCompletionTransport,
-        webViewTransport: com.zai.chat.network.transport.WebViewCompletionTransport
+        nativeTransport: com.zai.chat.network.transport.NativeCompletionTransport,
+        okHttpTransport: com.zai.chat.network.transport.OkHttpCompletionTransport
     ): com.zai.chat.network.transport.CompletionTransport {
-        return if (ZaiConfig.COMPLETIONS_TRANSPORT.equals("okhttp", ignoreCase = true)) {
+        return if (ZaiConfig.COMPLETIONS_TRANSPORT.equals("okhttp_raw", ignoreCase = true)) {
             okHttpTransport
         } else {
-            webViewTransport
+            nativeTransport
         }
     }
 }

@@ -27,6 +27,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.zai.chat.network.transport.CaptchaTokenPool
+import com.zai.chat.network.transport.WebViewSigner
 import java.io.File
 import java.io.IOException
 import java.util.UUID
@@ -36,6 +38,8 @@ import javax.inject.Inject
 class ChatViewModel @Inject constructor(
     private val repository: ChatRepository,
     private val apiService: ZaiApiService,
+    val signer: WebViewSigner,
+    private val tokenPool: CaptchaTokenPool,
     settingsDataStore: SettingsDataStore,
     savedStateHandle: SavedStateHandle,
     @ApplicationContext private val context: Context
@@ -141,6 +145,7 @@ class ChatViewModel @Inject constructor(
             }
             is ChatUiEvent.AddAttachments -> handleAddAttachments(event.uris)
             is ChatUiEvent.RemoveAttachment -> handleRemoveAttachment(event.localId)
+            is ChatUiEvent.UserComposing -> tokenPool.onUserComposing()
         }
     }
 

@@ -99,6 +99,7 @@ fun ChatComposer(
     onSelectModel: (String) -> Unit,
     onAddAttachments: (List<Uri>) -> Unit = {},
     onRemoveAttachment: (String) -> Unit = {},
+    onUserComposing: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var textInput by remember { mutableStateOf("") }
@@ -416,7 +417,10 @@ fun ChatComposer(
                         }
                         BasicTextField(
                             value = textInput,
-                            onValueChange = { textInput = it },
+                            onValueChange = {
+                                textInput = it
+                                onUserComposing()
+                            },
                             textStyle = TextStyle(
                                 color = TextPrimary,
                                 fontSize = 15.sp,
