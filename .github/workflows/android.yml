@@ -34,10 +34,22 @@ jobs:
           cache-read-only: false
           gradle-home-cache-cleanup: true
 
-      - name: Assemble debug APK
+      - name: Decode Signing Keystore
+        if: ${{ env.SIGNING_KEYSTORE != '' }}
+        env:
+          SIGNING_KEYSTORE: ${{ secrets.SIGNING_KEYSTORE }}
+        run: |
+          echo "$SIGNING_KEYSTORE" | base64 -d > "$GITHUB_WORKSPACE/keystore.jks"
+
+      - name: Assemble Debug & Release APKs
+        env:
+          SIGNING_KEYSTORE_PATH: ${{ secrets.SIGNING_KEYSTORE != '' && format('{0}/keystore.jks', github.workspace) || '' }}
+          SIGNING_KEYSTORE_PASSWORD: ${{ secrets.SIGNING_KEYSTORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
           set -o pipefail
-          ./gradlew assembleDebug --no-daemon --build-cache --parallel --stacktrace 2>&1 | tee build_output.log
+          ./gradlew assembleDebug assembleRelease --no-daemon --build-cache --parallel --stacktrace 2>&1 | tee build_output.log
 
       - name: Push Build Failure Log
         if: failure()
@@ -55,5 +67,13 @@ jobs:
         with:
           name: debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload Release APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apk
+          path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 7

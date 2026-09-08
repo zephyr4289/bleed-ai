@@ -1,2 +1,8 @@
 # Proguard rules for Z.AI Chat
-# Populated in Phase 11 (kotlinx.serialization + Hilt keep rules)
+# kotlinx.serialization: DTOs + enums + generated serializers
+-keepattributes *Annotation*, InnerClasses, Signature
+-keep class com.zai.chat.network.model.** { *; }
+-keep class com.zai.chat.data.model.** { *; }
+-keep,includedescriptorclasses class com.zai.chat.**$$serializer { *; }
+-keepclassmembers class com.zai.chat.** { *** Companion; }
+-keepclassmembers enum com.zai.chat.** { values(); valueOf(); }

@@ -142,6 +142,8 @@ fun TokenReconnectScreen(
                         WebView(ctx).apply {
                             settings.javaScriptEnabled = true
                             settings.domStorageEnabled = true          // localStorage
+                            settings.allowFileAccess = false
+                            settings.allowContentAccess = false
                             settings.userAgentString = WEBVIEW_UA
 
                             val cookieManager = CookieManager.getInstance()
