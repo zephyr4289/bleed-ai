@@ -28,8 +28,6 @@ import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material3.DismissDirection
-import androidx.compose.material3.DismissValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -37,12 +35,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
-import androidx.compose.material3.SwipeToDismiss
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberDismissState
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -237,19 +237,20 @@ fun DrawerChatList(
                     )
                 }
                 items(recent, key = { it.id }) { chat ->
-                    val dismissState = rememberDismissState(
+                    val dismissState = rememberSwipeToDismissBoxState(
                         confirmValueChange = { value ->
-                            if (value == DismissValue.DismissedToStart) {
+                            if (value == SwipeToDismissBoxValue.EndToStart) {
                                 view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
                                 viewModel.deleteChat(chat.id)
                                 true
                             } else false
                         }
                     )
-                    SwipeToDismiss(
+                    SwipeToDismissBox(
                         state = dismissState,
-                        directions = setOf(DismissDirection.EndToStart),
-                        background = {
+                        enableDismissFromStartToEnd = false,
+                        enableDismissFromEndToStart = true,
+                        backgroundContent = {
                             val dismissShape = RoundedCornerShape(10.dp)
                             Box(
                                 modifier = Modifier
@@ -267,7 +268,7 @@ fun DrawerChatList(
                                 )
                             }
                         },
-                        dismissContent = {
+                        content = {
                             TimelineChatCard(
                                 chat = chat,
                                 onClick = { onSelectChat(chat.id) },

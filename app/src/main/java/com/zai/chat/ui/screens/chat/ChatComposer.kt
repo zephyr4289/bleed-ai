@@ -442,7 +442,7 @@ fun ChatComposer(
                             canSend -> TextPrimary
                             else -> SurfaceActive
                         },
-                        animationSpec = BleedMotion.PressScaleSpring,
+                        animationSpec = BleedMotion.ColorMorphSpring,
                         label = "action_btn_bg"
                     )
 

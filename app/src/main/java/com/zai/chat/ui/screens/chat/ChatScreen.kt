@@ -80,6 +80,7 @@ import com.zai.chat.ui.components.MessageBubble
 import com.zai.chat.ui.components.specularBorder
 import com.zai.chat.ui.components.tactilePress
 import com.zai.chat.ui.theme.BorderAmbient
+import com.zai.chat.ui.theme.CanvasPureBlack
 import com.zai.chat.ui.theme.CrimsonFlare
 import com.zai.chat.ui.theme.EmeraldPulse
 import com.zai.chat.ui.theme.GlassIslandBackground

@@ -119,6 +119,12 @@ class WebViewEngine @Inject constructor(
         }
     }
 
+    fun abort() {
+        webView?.post {
+            webView?.evaluateJavascript(TransportScripts.ABORT_JS, null)
+        }
+    }
+
     suspend fun reloadEngine() = withContext(Dispatchers.Main) {
         initMutex.withLock {
             isBootstrapped = false

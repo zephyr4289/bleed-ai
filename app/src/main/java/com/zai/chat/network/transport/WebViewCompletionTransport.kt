@@ -5,9 +5,9 @@ import com.zai.chat.data.local.preferences.JwtParser
 import com.zai.chat.data.local.preferences.TokenManager
 import com.zai.chat.network.auth.AuthEventManager
 import com.zai.chat.network.model.ChatCompletionRequest
-import com.zai.chat.network.sse.CitationsPayload
+import com.zai.chat.network.model.CitationItem
+import com.zai.chat.network.model.UsageInfo
 import com.zai.chat.network.sse.StreamEvent
-import com.zai.chat.network.sse.UsagePayload
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -18,6 +18,10 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonObject
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -32,7 +36,7 @@ private data class BridgeEnvelope(
     val partialContent: String = "",
     val partialReasoning: String = "",
     val totalTokens: Int = 0,
-    val citations: List<CitationsPayload> = emptyList()
+    val citations: List<CitationItem> = emptyList()
 )
 
 @Singleton
@@ -72,31 +76,28 @@ class WebViewCompletionTransport @Inject constructor(
         )
         val headersJson = json.encodeToString(headersMap)
 
-        val bodyMap = linkedMapOf<String, Any?>(
-            "stream" to true,
-            "model" to request.model.ifBlank { ZaiConfig.MODEL_DEFAULT },
-            "messages" to request.messages,
-            "params" to emptyMap<String, String>(),
-            "features" to mapOf(
-                "image_generation" to false,
-                "web_search" to request.webSearch,
-                "auto_web_search" to false,
-                "preview_mode" to false,
-                "enable_thinking" to request.reasoning
-            ),
-            "variables" to emptyMap<String, String>()
-        )
-        request.chatId?.let { bodyMap["chat_id"] = it }
-        request.fileIds?.let { bodyMap["files"] = it }
+        val bodyObj = buildJsonObject {
+            put("stream", true)
+            put("model", request.model.ifBlank { ZaiConfig.MODEL_DEFAULT })
+            put("messages", json.encodeToJsonElement(request.messages))
+            putJsonObject("params") {}
+            putJsonObject("features") {
+                put("image_generation", false)
+                put("web_search", request.webSearch)
+                put("auto_web_search", false)
+                put("preview_mode", false)
+                put("enable_thinking", request.reasoning)
+            }
+            putJsonObject("variables") {}
+            put("chat_id", request.chatId)
+            request.fileIds?.let { put("files", json.encodeToJsonElement(it)) }
+        }
 
-        val bodyJson = json.encodeToString(bodyMap)
+        val bodyJson = json.encodeToString(bodyObj)
 
         // Register cancellation hook to abort in-flight fetch in WebView
         currentCoroutineContext()[Job]?.invokeOnCompletion {
-            kotlinx.coroutines.GlobalScope.let {
-                // Non-blocking fire and forget JS abort
-                webViewEngine.eval(TransportScripts.ABORT_JS)
-            }
+            webViewEngine.abort()
         }
 
         // Drain any stale events in channel
@@ -127,7 +128,7 @@ class WebViewCompletionTransport @Inject constructor(
                     "reasoning" -> emit(StreamEvent.ReasoningDelta(envelope.text))
                     "content" -> emit(StreamEvent.ContentDelta(envelope.text))
                     "citations" -> emit(StreamEvent.Citations(envelope.citations))
-                    "usage" -> emit(StreamEvent.Usage(UsagePayload(totalTokens = envelope.totalTokens)))
+                    "usage" -> emit(StreamEvent.Usage(UsageInfo(totalTokens = envelope.totalTokens)))
                     "done" -> {
                         emit(StreamEvent.Done)
                         break
@@ -148,7 +149,7 @@ class WebViewCompletionTransport @Inject constructor(
                 }
             }
         } catch (e: CancellationException) {
-            webViewEngine.eval(TransportScripts.ABORT_JS)
+            webViewEngine.abort()
             throw e
         } catch (e: Exception) {
             emit(StreamEvent.Error(e, "", ""))
