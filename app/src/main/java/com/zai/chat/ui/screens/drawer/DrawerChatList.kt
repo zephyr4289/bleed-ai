@@ -53,6 +53,10 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.zai.chat.R
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DrawerChatList(
@@ -78,24 +82,16 @@ fun DrawerChatList(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            "Z",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        )
-                    }
-                }
+                Image(
+                    painter = painterResource(id = R.drawable.ic_bleed_ai_logo),
+                    contentDescription = "Bleed-AI Logo",
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                )
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    "Z.AI",
+                    "Bleed-AI",
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                 )
             }

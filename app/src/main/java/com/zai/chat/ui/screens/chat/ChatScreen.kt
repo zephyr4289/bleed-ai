@@ -65,6 +65,11 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Settings
 
+import androidx.compose.foundation.Image
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
+import com.zai.chat.R
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
@@ -91,7 +96,7 @@ fun ChatScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = state.chatTitle.ifBlank { "Z.AI" },
+                        text = state.chatTitle.ifBlank { "Bleed-AI" },
                         style = MaterialTheme.typography.titleMedium
                             .copy(fontWeight = FontWeight.SemiBold),
                         maxLines = 1,
@@ -194,21 +199,13 @@ fun ChatScreen(
                         .padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier.size(64.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Rounded.AutoAwesome,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.size(32.dp)
-                            )
-                        }
-                    }
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_bleed_ai_logo),
+                        contentDescription = "Bleed-AI",
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clip(RoundedCornerShape(18.dp))
+                    )
                     Spacer(Modifier.height(16.dp))
                     Text(
                         text = "How can I help you today?",

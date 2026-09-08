@@ -18,5 +18,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "ZAI-Chat"
+rootProject.name = "Bleed-AI"
 include(":app")

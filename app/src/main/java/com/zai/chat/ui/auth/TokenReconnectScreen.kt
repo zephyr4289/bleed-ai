@@ -62,6 +62,15 @@ private val POLL_DELAYS_MS = longArrayOf(800L, 2500L, 5000L)
  * Origin safety: localStorage is per-origin (returning null elsewhere by
  * construction); the cookie read is explicitly scoped to BASE_URL.
  */
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
+import com.zai.chat.R
+
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 fun TokenReconnectScreen(
@@ -74,22 +83,47 @@ fun TokenReconnectScreen(
     var manualToken by remember { mutableStateOf("") }
     val handler = remember { Handler(Looper.getMainLooper()) }
 
+    LaunchedEffect(Unit) {
+        val cookies = CookieManager.getInstance().getCookie(ZaiConfig.BASE_URL)
+        if (!cookies.isNullOrEmpty()) {
+            val tokenFromCookie = cookies.split(";")
+                .map { it.trim() }
+                .firstOrNull { it.startsWith("token=") }
+                ?.removePrefix("token=")
+            if (!tokenFromCookie.isNullOrBlank()) {
+                onTokenExtracted(tokenFromCookie)
+            }
+        }
+    }
+
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column {
             // ── Header bar ───────────────────────────────────────────
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = if (isFirstLogin) "Connect session" else "Session expired",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                Image(
+                    painter = painterResource(id = R.drawable.ic_bleed_ai_logo),
+                    contentDescription = "Bleed-AI",
                     modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 8.dp)
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(8.dp))
                 )
+                Spacer(Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Bleed-AI",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                    )
+                    Text(
+                        text = if (isFirstLogin) "Sign in to connect account" else "Session expired • Re-authenticate",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 IconButton(onClick = { showManualEntry = !showManualEntry }) {
                     Icon(
                         imageVector = Icons.Rounded.Key,
