@@ -29,13 +29,17 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.zai.chat.data.local.preferences.SettingsDataStore
 import com.zai.chat.data.local.preferences.TokenManager
+import com.zai.chat.network.auth.AuthEvent
 import com.zai.chat.network.auth.AuthEventManager
-import com.zai.chat.ui.auth.TokenReconnectScreen
 import com.zai.chat.ui.debug.ComponentGalleryScreen
 import com.zai.chat.ui.screens.chat.ChatScreen
 import com.zai.chat.ui.screens.chat.ChatViewModel
 import com.zai.chat.ui.screens.drawer.DrawerChatList
 import com.zai.chat.ui.screens.drawer.DrawerViewModel
+import com.zai.chat.ui.screens.session.ManageSessionScreen
+import com.zai.chat.ui.screens.session.SessionMode
+import com.zai.chat.ui.screens.session.SessionUiEvent
+import com.zai.chat.ui.screens.session.SessionViewModel
 import com.zai.chat.ui.screens.settings.SettingsScreen
 import com.zai.chat.ui.screens.settings.SettingsViewModel
 import com.zai.chat.ui.theme.ZaiTheme
@@ -57,36 +61,45 @@ class MainActivity : ComponentActivity() {
             val themeMode by settingsDataStore.themeMode.collectAsState(initial = "OLED")
             val fontScale by settingsDataStore.fontScale.collectAsState(initial = 1f)
 
-            ZaiTheme(themeMode = themeMode, fontScale = fontScale) {
-                var showAuth by remember {
-                    mutableStateOf(tokenManager.getStoredToken() == null)
-                }
-                var dismissedWithoutToken by remember { mutableStateOf(false) }
-                var showGallery by remember { mutableStateOf(false) }
+            val navController = rememberNavController()
+            val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+            val scope = rememberCoroutineScope()
+            val sessionViewModel: SessionViewModel = hiltViewModel()
+            val drawerViewModel: DrawerViewModel = hiltViewModel()
 
-                LaunchedEffect(Unit) {
-                    tokenManager.tokenFlow.collect { token ->
-                        when {
-                            token != null -> { showAuth = false; dismissedWithoutToken = false }
-                            !dismissedWithoutToken -> showAuth = true
+            var showGallery by remember { mutableStateOf(false) }
+
+            // Handle background 401 token expirations gracefully via navigation
+            LaunchedEffect(Unit) {
+                authEventManager.events.collect { event ->
+                    when (event) {
+                        is AuthEvent.TokenExpired -> {
+                            sessionViewModel.onEvent(SessionUiEvent.SetMode(SessionMode.BackgroundExpired))
+                            navController.navigate("session_management") {
+                                launchSingleTop = true
+                            }
                         }
                     }
                 }
-                LaunchedEffect(Unit) {
-                    authEventManager.events.collect { showAuth = true }
-                }
+            }
 
-                val navController = rememberNavController()
-                val drawerState = rememberDrawerState(DrawerValue.Closed)
-                val scope = rememberCoroutineScope()
-                val drawerViewModel: DrawerViewModel = hiltViewModel()
-
-                LaunchedEffect(drawerState.currentValue) {
-                    if (drawerState.currentValue == DrawerValue.Open) {
-                        drawerViewModel.refresh()
+            // Auto-prompt on cold launch if no valid token exists
+            LaunchedEffect(Unit) {
+                if (tokenManager.getStoredToken().isNullOrBlank()) {
+                    sessionViewModel.onEvent(SessionUiEvent.SetMode(SessionMode.ActiveManagement))
+                    navController.navigate("session_management") {
+                        launchSingleTop = true
                     }
                 }
+            }
 
+            LaunchedEffect(drawerState.currentValue) {
+                if (drawerState.currentValue == DrawerValue.Open) {
+                    drawerViewModel.refresh()
+                }
+            }
+
+            ZaiTheme(themeMode = themeMode, fontScale = fontScale) {
                 when {
                     showGallery -> {
                         Box(modifier = Modifier.fillMaxSize()) {
@@ -101,23 +114,23 @@ class MainActivity : ComponentActivity() {
                             ) { Text("← Back") }
                         }
                     }
-                    showAuth -> TokenReconnectScreen(
-                        isFirstLogin = tokenManager.getStoredToken() == null,
-                        onTokenExtracted = { tokenManager.saveToken(it) },
-                        onDismiss = { dismissedWithoutToken = true; showAuth = false }
-                    )
                     else -> ModalNavigationDrawer(
                         drawerState = drawerState,
+                        gesturesEnabled = drawerState.isOpen,
                         drawerContent = {
                             DrawerChatList(
                                 viewModel = drawerViewModel,
                                 onSelectChat = { chatId ->
                                     scope.launch { drawerState.close() }
-                                    navController.navigate("chat?chatId=$chatId")
+                                    navController.navigate("chat?chatId=$chatId") {
+                                        launchSingleTop = true
+                                    }
                                 },
                                 onNewChat = {
                                     scope.launch { drawerState.close() }
-                                    navController.navigate("chat")
+                                    navController.navigate("chat") {
+                                        launchSingleTop = true
+                                    }
                                 },
                                 onOpenSettings = {
                                     scope.launch { drawerState.close() }
@@ -155,9 +168,15 @@ class MainActivity : ComponentActivity() {
                                     viewModel = settingsViewModel,
                                     onBack = { navController.popBackStack() },
                                     onManageSession = {
-                                        dismissedWithoutToken = false
-                                        showAuth = true
+                                        sessionViewModel.onEvent(SessionUiEvent.SetMode(SessionMode.ActiveManagement))
+                                        navController.navigate("session_management")
                                     }
+                                )
+                            }
+                            composable("session_management") {
+                                ManageSessionScreen(
+                                    viewModel = sessionViewModel,
+                                    onNavigateBack = { navController.popBackStack() }
                                 )
                             }
                         }
