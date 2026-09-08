@@ -220,7 +220,7 @@ fun ChatComposer(
                     textInput.isNotBlank() -> MaterialTheme.colorScheme.primary
                     else -> MaterialTheme.colorScheme.surface
                 },
-                animationSpec = ZaiMotion.MorphSpring,
+                animationSpec = ZaiMotion.ColorMorphSpring,
                 label = "send_bg"
             )
             Box(

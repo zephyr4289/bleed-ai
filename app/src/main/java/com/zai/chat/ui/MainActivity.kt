@@ -58,11 +58,17 @@ class MainActivity : ComponentActivity() {
 
                 when {
                     showGallery -> {
-                        ComponentGalleryScreen(Modifier.fillMaxSize())
-                        TextButton(
-                            onClick = { showGallery = false },
-                            modifier = Modifier.padding(16.dp)
-                        ) { Text("← Back") }
+                        androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize()) {
+                            ComponentGalleryScreen(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(top = 32.dp)
+                            )
+                            TextButton(
+                                onClick = { showGallery = false },
+                                modifier = Modifier.padding(16.dp)
+                            ) { Text("← Back") }
+                        }
                     }
                     showAuth -> TokenReconnectScreen(
                         isFirstLogin = tokenManager.getStoredToken() == null,
