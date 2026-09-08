@@ -288,4 +288,9 @@ class ChatRepositoryImpl @Inject constructor(
             chatDao.upsertChat(it.copy(updatedAt = System.currentTimeMillis()))
         }
     }
+
+    override suspend fun clearLocalCache(): Unit = withContext(Dispatchers.IO) {
+        chatDao.deleteAllChats()
+        refreshChats()
+    }
 }

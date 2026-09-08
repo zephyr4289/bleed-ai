@@ -57,4 +57,8 @@ interface ChatRepository {
         deepThinking: Boolean,
         fileIds: List<String> = emptyList()
     ): Flow<StreamEvent>
+
+    // ── Cache management ─────────────────────────────────────────────
+    /** Clears all local chats from Room and re-syncs if a token is present. Never calls remote delete. */
+    suspend fun clearLocalCache()
 }

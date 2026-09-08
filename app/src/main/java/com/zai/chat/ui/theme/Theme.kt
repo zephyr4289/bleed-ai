@@ -6,6 +6,8 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 
 private val DarkColorScheme = darkColorScheme(
     primary = ClaudePeach,
@@ -34,18 +36,29 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun ZaiTheme(
     themeMode: String = "OLED",
+    fontScale: Float = 1f,
     content: @Composable () -> Unit
 ) {
-    val dark = when (themeMode) {
+    val isDark = when (themeMode) {
         "LIGHT" -> false
         "DARK", "OLED" -> true
         else -> isSystemInDarkTheme()
     }
 
-    val colorScheme = if (dark) DarkColorScheme else LightColorScheme
+    val colorScheme = if (isDark) {
+        val bg = if (themeMode == "OLED") TrueBlack else ObsidianBase
+        DarkColorScheme.copy(background = bg)
+    } else {
+        LightColorScheme
+    }
 
+    val currentDensity = LocalDensity.current
     CompositionLocalProvider(
-        LocalSpacing provides ZaiSpacing()
+        LocalSpacing provides ZaiSpacing(),
+        LocalDensity provides Density(
+            density = currentDensity.density,
+            fontScale = currentDensity.fontScale * fontScale
+        )
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
