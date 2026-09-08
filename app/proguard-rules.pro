@@ -6,3 +6,8 @@
 -keep,includedescriptorclasses class com.zai.chat.**$$serializer { *; }
 -keepclassmembers class com.zai.chat.** { *** Companion; }
 -keepclassmembers enum com.zai.chat.** { values(); valueOf(); }
+
+# Dependencies compile-only annotations (Tink / OkHttp / CheckerFramework)
+-dontwarn com.google.errorprone.annotations.**
+-dontwarn javax.annotation.**
+-dontwarn org.checkerframework.**
