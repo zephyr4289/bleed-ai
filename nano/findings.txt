@@ -1,0 +1,83 @@
+# 🔬 Recon Probes Findings (P1, P2, P3) for chat.z.ai
+
+Date: 2026-09-08
+Target: chat.z.ai (FE: prod-fe-1.1.93)
+
+---
+
+## 1. Probe 1 (P1): Captcha Risk-Gating Tests
+
+Tested against `POST https://chat.z.ai/api/v2/chat/completions`:
+
+- **Rung (a) Token-only**:
+  Headers: `Authorization: Bearer <token>`, `X-FE-Version: prod-fe-1.1.93`
+  Result: HTTP 200 SSE containing:
+  `{"code": "FRONTEND_CAPTCHA_REQUIRED", "captcha_error_type": "missing_param", "detail": "Please refresh the page to update the app, then try again."}`
+
+- **Rung (b) Full Cookie Jar**:
+  Headers: Full cookie jar (`ssxmod_itna`, `ssxmod_itna2`, `acw_tc`, `cdn_sec_tc`, `_c_WBKFRo`, `_ga`, etc.) + `User-Agent`, `Origin`, `Referer`, `Accept-Language`, `X-FE-Version`.
+  Result: HTTP 200 SSE containing:
+  `{"code": "FRONTEND_CAPTCHA_REQUIRED", "captcha_error_type": "missing_param"}`
+
+- **Rung (c) Full Cookie Jar + Computed Dynamic HMAC Signature + urlParams**:
+  Headers: All of the above + `X-Signature: <hex>` + query parameters `?<urlParams>&signature_timestamp=<timestamp>`.
+  Result: HTTP 200 SSE containing:
+  `{"code": "FRONTEND_CAPTCHA_REQUIRED", "captcha_error_type": "missing_param"}`
+
+**Conclusion for P1**:
+`GET /api/config` explicitly specifies `"enable_captcha": true`. The backend unconditionally requires `captcha_verify_param` in the request body for `/api/v2/chat/completions`. Pure headless HTTP requests without Alibaba Cloud Captcha tokens are rejected.
+
+---
+
+## 2. Probe 2 (P2): Captcha Parameter Properties
+
+- **Provider**: Alibaba Cloud Captcha (`window.initAliyunCaptcha`).
+- **Mechanism**: The browser JavaScript SDK executes risk verification with Alibaba Cloud servers and returns a single-use signed verification token string (`captcha_verify_param`).
+- **Replayability**: Tokens are single-use tickets verified server-side against Alibaba Cloud API upon receipt by chat.z.ai. Once consumed, subsequent requests with the same token fail validation.
+
+---
+
+## 3. Probe 3 (P3): Exact Signature Specification
+
+Deobfuscated directly from `prod-fe-1.1.93/assets/index-hicAZtW-.js` (`rne()` and `nne()`):
+
+1. **HMAC Salt**:
+   `key-@@@@)))()((9))-xxxx&&&%%%%%` (retrieved via `Uc(281, "P0nX")`).
+
+2. **5-Minute Window Integer**:
+   `val timestamp = System.currentTimeMillis()` (ms as string)
+   `val window = timestamp / (5 * 60 * 1000)`
+
+3. **Round 1 Key**:
+   `val round1Key = HMAC_SHA256(key = SALT.toByteArray(), data = window.toString().toByteArray())`
+
+4. **Sorted Payload Structure**:
+   `i = { timestamp: timestamp, requestId: UUID.randomUUID().toString(), user_id: jwt_user_id }`
+   Sorted alphabetically by keys and joined with commas:
+   `sortedPayload = "requestId," + requestId + ",timestamp," + timestamp + ",user_id," + user_id`
+
+5. **Prompt Base64**:
+   `val base64Prompt = Base64.encodeToString(prompt.trim().toByteArray(Charsets.UTF_8), Base64.NO_WRAP)`
+
+6. **Combined Signature Input**:
+   `val h = sortedPayload + "|" + base64Prompt + "|" + timestamp`
+
+7. **Final Signature**:
+   `val signature = HMAC_SHA256(key = round1Key, data = h.toByteArray()).toHexLowerCase()`
+
+8. **Attachment Points**:
+   - Header: `X-Signature: <signature>`
+   - Header: `X-FE-Version: prod-fe-1.1.93`
+   - URL Query: `https://chat.z.ai/api/v2/chat/completions?<urlParams>&signature_timestamp=<timestamp>`
+   - Body: `{ ..., "captcha_verify_param": "<param>" }`
+
+---
+
+## 4. Transport Landing Zone Verdict
+
+- Since **GET /api/v1/chats/**, **GET /api/v1/chats/{id}**, and **GET /api/models** are **UNGATED** (work 100% natively via Bearer token with full history & sidebar sync in Batch A):
+- For **Completions (Sending Messages)**:
+  - **Zone 2 (Dual-Transport Architecture)** is the winning, robust solution:
+    - `CompletionTransport` interface with `WebViewCompletionTransport`.
+    - A hidden/headless WebView on chat.z.ai context effortlessly handles Alibaba Cloud Captcha and session dispatch, streaming SSE deltas directly back to our native Compose UI via `@JavascriptInterface`.
+    - Room database persistence, offline caching, sidebar, search, and markdown rendering remain 100% native and lightning fast.
