@@ -1,6 +1,7 @@
 package com.zai.chat.data.repository
 
 import com.zai.chat.data.model.Chat
+import com.zai.chat.data.model.FileAttachment
 import com.zai.chat.data.model.Message
 import com.zai.chat.network.sse.StreamEvent
 import kotlinx.coroutines.flow.Flow
@@ -41,7 +42,7 @@ interface ChatRepository {
     suspend fun persistUserMessage(
         chatId: String,
         content: String,
-        fileIds: List<String> = emptyList()
+        attachments: List<FileAttachment> = emptyList()
     ): String
 
     /**
@@ -55,7 +56,7 @@ interface ChatRepository {
         model: String,
         webSearch: Boolean,
         deepThinking: Boolean,
-        fileIds: List<String> = emptyList()
+        attachments: List<FileAttachment> = emptyList()
     ): Flow<StreamEvent>
 
     // ── Cache management ─────────────────────────────────────────────

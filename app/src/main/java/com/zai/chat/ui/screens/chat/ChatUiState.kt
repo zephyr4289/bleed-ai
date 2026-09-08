@@ -1,7 +1,24 @@
 package com.zai.chat.ui.screens.chat
 
+import android.net.Uri
 import com.zai.chat.config.ZaiConfig
+import com.zai.chat.data.model.FileAttachment
 import com.zai.chat.data.model.Message
+
+data class PendingAttachment(
+    val localId: String,
+    val uri: Uri,
+    val name: String,
+    val isImage: Boolean,
+    val status: Status
+) {
+    sealed interface Status {
+        data object Copying : Status
+        data class Uploading(val percent: Int) : Status
+        data class Done(val attachment: FileAttachment) : Status
+        data class Failed(val reason: String) : Status
+    }
+}
 
 data class ChatUiState(
     val chatId: String? = null,
@@ -20,7 +37,8 @@ data class ChatUiState(
     val unreadWhileScrolledUp: Int = 0,
     val bannerError: String? = null,
     /** Non-null → edit dialog is open for this message. */
-    val editingMessage: Message? = null
+    val editingMessage: Message? = null,
+    val pendingAttachments: List<PendingAttachment> = emptyList()
 )
 
 sealed interface ChatUiEvent {
@@ -36,4 +54,6 @@ sealed interface ChatUiEvent {
     data class RegenerateFrom(val message: Message) : ChatUiEvent
     data object DismissError : ChatUiEvent
     data class ScrolledStateChange(val isScrolledUp: Boolean) : ChatUiEvent
+    data class AddAttachments(val uris: List<Uri>) : ChatUiEvent
+    data class RemoveAttachment(val localId: String) : ChatUiEvent
 }

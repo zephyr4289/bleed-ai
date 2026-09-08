@@ -1,6 +1,9 @@
 package com.zai.chat.ui.screens.chat
 
+import android.net.Uri
 import android.view.HapticFeedbackConstants
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -18,6 +21,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,9 +31,13 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.AttachFile
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Error
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -47,21 +55,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.zai.chat.ui.theme.ClaudePeach
 import com.zai.chat.ui.theme.KimiCyan
 import com.zai.chat.ui.theme.ShapeChip
 import com.zai.chat.ui.theme.ZaiMotion
 
-/**
- * Composer consuming P1's enterIsSend: ImeAction.Send when enabled, newline
- * otherwise. Attachment button is a P10 placeholder.
- */
 @Composable
 fun ChatComposer(
     isStreaming: Boolean,
@@ -70,19 +77,35 @@ fun ChatComposer(
     webSearch: Boolean,
     deepThinking: Boolean,
     enterIsSend: Boolean,
+    pendingAttachments: List<PendingAttachment> = emptyList(),
     onSendMessage: (String) -> Unit,
     onStopStreaming: () -> Unit,
     onToggleWebSearch: (Boolean) -> Unit,
     onToggleDeepThinking: (Boolean) -> Unit,
     onSelectModel: (String) -> Unit,
+    onAddAttachments: (List<Uri>) -> Unit = {},
+    onRemoveAttachment: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var textInput by remember { mutableStateOf("") }
     var modelMenuOpen by remember { mutableStateOf(false) }
     val view = LocalView.current
 
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris ->
+        if (uris.isNotEmpty()) {
+            onAddAttachments(uris)
+        }
+    }
+
+    val isUploading = pendingAttachments.any {
+        it.status is PendingAttachment.Status.Copying || it.status is PendingAttachment.Status.Uploading
+    }
+    val canSend = textInput.isNotBlank() && !isUploading
+
     fun send() {
-        if (isStreaming || textInput.isBlank()) return
+        if (isStreaming || !canSend) return
         view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
         onSendMessage(textInput)
         textInput = ""
@@ -159,6 +182,109 @@ fun ChatComposer(
             )
         }
 
+        // ── Attachments row (P10) ────────────────────────────────────
+        if (pendingAttachments.isNotEmpty()) {
+            Spacer(Modifier.padding(top = 6.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                pendingAttachments.forEach { pending ->
+                    val isFailed = pending.status is PendingAttachment.Status.Failed
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            if (isFailed) MaterialTheme.colorScheme.error
+                            else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (pending.isImage) {
+                                AsyncImage(
+                                    model = pending.uri,
+                                    contentDescription = pending.name,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .clip(RoundedCornerShape(6.dp))
+                                )
+                            } else {
+                                Icon(
+                                    Icons.Rounded.AttachFile,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = pending.name,
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.widthIn(max = 120.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+
+                            when (val status = pending.status) {
+                                is PendingAttachment.Status.Copying -> {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(14.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                is PendingAttachment.Status.Uploading -> {
+                                    CircularProgressIndicator(
+                                        progress = { status.percent / 100f },
+                                        modifier = Modifier.size(14.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                is PendingAttachment.Status.Done -> {
+                                    Icon(
+                                        Icons.Rounded.CheckCircle,
+                                        contentDescription = "Uploaded",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                                is PendingAttachment.Status.Failed -> {
+                                    Icon(
+                                        Icons.Rounded.Error,
+                                        contentDescription = "Failed",
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.width(4.dp))
+                            IconButton(
+                                onClick = { onRemoveAttachment(pending.localId) },
+                                modifier = Modifier.size(18.dp)
+                            ) {
+                                Icon(
+                                    Icons.Rounded.Close,
+                                    contentDescription = "Remove",
+                                    modifier = Modifier.size(12.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         Spacer(Modifier.padding(top = 4.dp))
 
         // ── Input row ────────────────────────────────────────────────
@@ -166,11 +292,13 @@ fun ChatComposer(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.Bottom
         ) {
-            // P10: file upload lands here
-            IconButton(onClick = { /* P10: file picker */ }, modifier = Modifier.size(40.dp)) {
+            IconButton(
+                onClick = { launcher.launch(arrayOf("*/*")) },
+                modifier = Modifier.size(40.dp)
+            ) {
                 Icon(
                     imageVector = Icons.Rounded.AttachFile,
-                    contentDescription = "Attach",
+                    contentDescription = "Attach files",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -217,7 +345,7 @@ fun ChatComposer(
             val sendBg by animateColorAsState(
                 targetValue = when {
                     isStreaming -> ClaudePeach
-                    textInput.isNotBlank() -> MaterialTheme.colorScheme.primary
+                    canSend -> MaterialTheme.colorScheme.primary
                     else -> MaterialTheme.colorScheme.surface
                 },
                 animationSpec = ZaiMotion.ColorMorphSpring,
@@ -237,7 +365,7 @@ fun ChatComposer(
                     imageVector = if (isStreaming) Icons.Rounded.Stop
                     else Icons.Rounded.ArrowUpward,
                     contentDescription = if (isStreaming) "Stop" else "Send",
-                    tint = if (isStreaming || textInput.isNotBlank()) Color.Black
+                    tint = if (isStreaming || canSend) Color.Black
                     else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(20.dp)
                 )

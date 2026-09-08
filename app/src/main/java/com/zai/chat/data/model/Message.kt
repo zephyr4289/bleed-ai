@@ -16,7 +16,7 @@ data class Message(
     val role: MessageRole,
     val content: String,
     val reasoning: String? = null,
-    val attachments: List<String> = emptyList(),
+    val attachments: List<FileAttachment> = emptyList(),
     val citations: List<SearchCitation> = emptyList(),
     val createdAt: Long = System.currentTimeMillis(),
     val tokenCount: Int? = null,

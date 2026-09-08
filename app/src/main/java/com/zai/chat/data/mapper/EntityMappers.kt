@@ -3,6 +3,7 @@ package com.zai.chat.data.mapper
 import com.zai.chat.data.local.entity.ChatEntity
 import com.zai.chat.data.local.entity.MessageEntity
 import com.zai.chat.data.model.Chat
+import com.zai.chat.data.model.FileAttachment
 import com.zai.chat.data.model.Message
 import com.zai.chat.data.model.MessageRole
 import com.zai.chat.data.model.SearchCitation
@@ -41,7 +42,7 @@ fun MessageEntity.toDomain(json: Json): Message = Message(
     role = MessageRole.fromWire(role),
     content = content,
     reasoning = reasoning,
-    attachments = attachmentsJson.decodeListOrEmpty(json),
+    attachments = attachmentsJson.decodeAttachmentsOrEmpty(json),
     citations = searchResultsJson.decodeCitationsOrEmpty(json),
     createdAt = createdAt,
     tokenCount = tokenCount,
@@ -68,12 +69,13 @@ fun Message.toEntity(newId: String, json: Json): MessageEntity = MessageEntity(
 
 // ── private decode helpers ──────────────────────────────────────────────
 
-private fun String?.decodeListOrEmpty(json: Json): List<String> =
+private fun String?.decodeAttachmentsOrEmpty(json: Json): List<FileAttachment> =
     this?.let { raw ->
-        runCatching { json.decodeFromString<List<String>>(raw) }.getOrDefault(emptyList())
+        runCatching { json.decodeFromString<List<FileAttachment>>(raw) }.getOrDefault(emptyList())
     } ?: emptyList()
 
 private fun String?.decodeCitationsOrEmpty(json: Json): List<SearchCitation> =
     this?.let { raw ->
         runCatching { json.decodeFromString<List<SearchCitation>>(raw) }.getOrDefault(emptyList())
     } ?: emptyList()
+

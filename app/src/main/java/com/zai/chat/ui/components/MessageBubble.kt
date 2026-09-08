@@ -10,6 +10,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,8 +21,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AttachFile
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Refresh
@@ -41,7 +45,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.zai.chat.data.model.FileAttachment
 import com.zai.chat.data.model.Message
 import com.zai.chat.data.model.MessageRole
 import com.zai.chat.ui.theme.ShapeBubbleUser
@@ -77,21 +83,29 @@ fun MessageBubble(
         horizontalAlignment = if (isUser) Alignment.End else Alignment.Start
     ) {
         if (isUser) {
-            Surface(
-                shape = ShapeBubbleUser,
-                color = UserBubbleFillDark,
-                modifier = Modifier
-                    .widthIn(max = 320.dp)
-                    .combinedClickable(
-                        onClick = { showActions = !showActions },
-                        onLongClick = { showActions = true }
-                    )
+            Column(
+                horizontalAlignment = Alignment.End,
+                modifier = Modifier.widthIn(max = 320.dp)
             ) {
-                Text(
-                    text = message.content,
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
-                )
+                if (message.attachments.isNotEmpty()) {
+                    AttachmentChipsRow(attachments = message.attachments)
+                    Spacer(Modifier.height(4.dp))
+                }
+                Surface(
+                    shape = ShapeBubbleUser,
+                    color = UserBubbleFillDark,
+                    modifier = Modifier
+                        .combinedClickable(
+                            onClick = { showActions = !showActions },
+                            onLongClick = { showActions = true }
+                        )
+                ) {
+                    Text(
+                        text = message.content,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                    )
+                }
             }
         } else {
             Column(
@@ -102,6 +116,10 @@ fun MessageBubble(
                         onLongClick = { showActions = true }
                     )
             ) {
+                if (message.attachments.isNotEmpty()) {
+                    AttachmentChipsRow(attachments = message.attachments)
+                    Spacer(Modifier.height(6.dp))
+                }
                 // 1. Thinking (also when content hasn't started yet)
                 if (!message.reasoning.isNullOrEmpty()) {
                     ThinkingBlock(
@@ -215,6 +233,44 @@ fun MessageBubble(
                             modifier = Modifier.size(16.dp)
                         )
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AttachmentChipsRow(
+    attachments: List<FileAttachment>,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        attachments.forEach { attachment ->
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.AttachFile,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = attachment.name,
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
         }

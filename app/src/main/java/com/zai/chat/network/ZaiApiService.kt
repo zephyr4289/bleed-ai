@@ -145,13 +145,23 @@ class ZaiApiService @Inject constructor(
         }
     }
 
-    suspend fun uploadFile(file: File): FileUploadResponse = withContext(Dispatchers.IO) {
+    suspend fun uploadFile(
+        file: File,
+        mimeType: String = "application/octet-stream",
+        onProgress: ((bytesWritten: Long, contentLength: Long) -> Unit)? = null
+    ): FileUploadResponse = withContext(Dispatchers.IO) {
+        val fileBody = file.asRequestBody(mimeType.toMediaType())
+        val requestBody = if (onProgress != null) {
+            ProgressRequestBody(fileBody, onProgress)
+        } else {
+            fileBody
+        }
         val multipartBody = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
             .addFormDataPart(
                 "file",
                 file.name,
-                file.asRequestBody("application/octet-stream".toMediaType())
+                requestBody
             )
             .build()
         val httpRequest = Request.Builder()

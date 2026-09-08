@@ -112,11 +112,14 @@ fun ChatScreen(
                 webSearch = state.webSearch,
                 deepThinking = state.deepThinking,
                 enterIsSend = state.enterIsSend,
+                pendingAttachments = state.pendingAttachments,
                 onSendMessage = { viewModel.onEvent(ChatUiEvent.SendMessage(it)) },
                 onStopStreaming = { viewModel.onEvent(ChatUiEvent.StopStreaming) },
                 onToggleWebSearch = { viewModel.onEvent(ChatUiEvent.ToggleWebSearch(it)) },
                 onToggleDeepThinking = { viewModel.onEvent(ChatUiEvent.ToggleDeepThinking(it)) },
-                onSelectModel = { viewModel.onEvent(ChatUiEvent.SelectModel(it)) }
+                onSelectModel = { viewModel.onEvent(ChatUiEvent.SelectModel(it)) },
+                onAddAttachments = { viewModel.onEvent(ChatUiEvent.AddAttachments(it)) },
+                onRemoveAttachment = { viewModel.onEvent(ChatUiEvent.RemoveAttachment(it)) }
             )
         },
         containerColor = MaterialTheme.colorScheme.background,

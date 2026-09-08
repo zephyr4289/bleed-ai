@@ -7,6 +7,7 @@ import com.zai.chat.data.local.entity.MessageEntity
 import com.zai.chat.data.mapper.toDomain
 import com.zai.chat.data.mapper.toEntity
 import com.zai.chat.data.model.Chat
+import com.zai.chat.data.model.FileAttachment
 import com.zai.chat.data.model.Message
 import com.zai.chat.data.model.MessageRole
 import com.zai.chat.data.model.SearchCitation
@@ -176,7 +177,7 @@ class ChatRepositoryImpl @Inject constructor(
     override suspend fun persistUserMessage(
         chatId: String,
         content: String,
-        fileIds: List<String>
+        attachments: List<FileAttachment>
     ): String {
         val id = UUID.randomUUID().toString()
         val msg = Message(
@@ -184,7 +185,7 @@ class ChatRepositoryImpl @Inject constructor(
             chatId = chatId,
             role = MessageRole.USER,
             content = content,
-            attachments = fileIds
+            attachments = attachments
         )
         messageDao.upsertMessage(msg.toEntity(id, json))
         bumpChatTimestamp(chatId)
@@ -196,7 +197,7 @@ class ChatRepositoryImpl @Inject constructor(
         model: String,
         webSearch: Boolean,
         deepThinking: Boolean,
-        fileIds: List<String>
+        attachments: List<FileAttachment>
     ): Flow<StreamEvent> = flow {
         // 1. History as-is (already contains the fresh user message).
         val history = messageDao.getMessagesForChat(chatId).map {
@@ -210,7 +211,7 @@ class ChatRepositoryImpl @Inject constructor(
             stream = true,
             webSearch = webSearch,
             reasoning = deepThinking,
-            fileIds = fileIds.ifEmpty { null }
+            fileIds = attachments.map { it.id }.ifEmpty { null }
         )
 
         val assistantId = UUID.randomUUID().toString()
