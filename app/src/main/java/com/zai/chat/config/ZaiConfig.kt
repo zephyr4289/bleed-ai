@@ -18,20 +18,20 @@ object ZaiConfig {
     // ── Endpoints ────────────────────────────────────────────────────
     const val BASE_URL: String = "https://chat.z.ai"
 
-    /** [RECON] Open WebUI fork default. Verify actual path in P12. */
-    const val COMPLETIONS_PATH: String = "/api/chat/completions"
+    /** Verified Open WebUI v2 completions path. */
+    const val COMPLETIONS_PATH: String = "/api/v2/chat/completions"
 
-    /** [RECON] Open WebUI standard. High confidence. */
-    const val CHATS_PATH: String = "/api/v1/chats"
+    /** Canonical Open WebUI chat list path with trailing slash. */
+    const val CHATS_PATH: String = "/api/v1/chats/"
 
-    /** [RECON] Open WebUI standard. High confidence. */
+    /** Open WebUI standard models path. */
     const val MODELS_PATH: String = "/api/models"
 
-    /** [RECON] Open WebUI standard. High confidence. */
+    /** Open WebUI standard file upload path. */
     const val UPLOAD_FILE_PATH: String = "/api/v1/files/"
 
     // ── Request identity headers ─────────────────────────────────────
-    /** [RECON] Desktop Chrome UA. Copy the EXACT string your browser sends. */
+    /** Desktop Chrome UA. */
     const val USER_AGENT: String =
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
         "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
@@ -53,7 +53,7 @@ object ZaiConfig {
     /**
      * Default model identifier from live frontend.
      */
-    const val MODEL_DEFAULT: String = "GLM-5.3-Flash"
+    const val MODEL_DEFAULT: String = "glm-5.3"
 
     // ── Timeouts ─────────────────────────────────────────────────────
     const val CONNECT_TIMEOUT_SECONDS: Long = 30L

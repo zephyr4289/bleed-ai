@@ -14,6 +14,7 @@ import com.zai.chat.data.model.SearchCitation
 import com.zai.chat.network.ZaiApiService
 import com.zai.chat.network.model.ChatCompletionRequest
 import com.zai.chat.network.model.RequestMessage
+import com.zai.chat.network.model.linearizeChatHistory
 import com.zai.chat.network.sse.StreamEvent
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -51,10 +52,11 @@ class ChatRepositoryImpl @Inject constructor(
             val remote = apiService.getChats(page)
             val entities = remote.map { r ->
                 val cached = chatDao.getChatById(r.id)
+                val updatedTime = if (r.updatedAt in 1..99_999_999_999L) r.updatedAt * 1000L else if (r.updatedAt > 0) r.updatedAt else System.currentTimeMillis()
                 ChatEntity(
                     id = r.id,
                     title = r.title,
-                    updatedAt = r.updatedAt,          // [RECON] P12: verify ms vs seconds
+                    updatedAt = updatedTime,
                     pinned = r.pinned,
                     folderId = r.folderId,
                     fullyCached = cached?.fullyCached ?: false   // never regress the flag
@@ -73,14 +75,16 @@ class ChatRepositoryImpl @Inject constructor(
         if (chat?.fullyCached == true) return@withContext
         try {
             val detail = apiService.getChatDetail(chatId)
-            val entities = detail.chat.messages.map { m ->
+            val linearMessages = linearizeChatHistory(detail.chat.history)
+            val entities = linearMessages.map { m ->
+                val msgTime = if (m.timestamp in 1..99_999_999_999L) m.timestamp * 1000L else if (m.timestamp > 0) m.timestamp else System.currentTimeMillis()
                 MessageEntity(
                     id = m.id,
                     chatId = chatId,
                     role = MessageRole.fromWire(m.role).wire,
-                    content = m.content,
+                    content = m.content.orEmpty(),
                     reasoning = m.reasoning?.takeIf { it.isNotBlank() },
-                    createdAt = m.timestamp               // [RECON] P12: verify units
+                    createdAt = msgTime
                 )
             }
             messageDao.upsertMessages(entities)

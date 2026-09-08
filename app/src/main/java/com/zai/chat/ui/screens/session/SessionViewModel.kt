@@ -118,10 +118,10 @@ class SessionViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(verificationState = SessionVerificationState.Testing) }
             try {
-                val models = withContext(Dispatchers.IO) { apiService.getAvailableModels() }
+                val models = withContext(Dispatchers.IO) { apiService.pingAvailableModels() }
                 if (models.isNotEmpty()) {
                     _uiState.update {
-                        it.copy(verificationState = SessionVerificationState.Valid("Connected! ${models.size} models reachable"))
+                        it.copy(verificationState = SessionVerificationState.Valid("Connected! ${models.size} models reachable (${models.take(3).joinToString()})"))
                     }
                 } else {
                     _uiState.update {
@@ -129,8 +129,15 @@ class SessionViewModel @Inject constructor(
                     }
                 }
             } catch (e: Exception) {
+                val rawMsg = e.message ?: "Connection failure"
+                val diagnostic = when {
+                    rawMsg.contains("401") || rawMsg.contains("403") -> "Authentication rejected (HTTP 401/403) — invalid or expired token."
+                    rawMsg.contains("404") -> "Endpoint not found (HTTP 404) — check API base path."
+                    rawMsg.contains("Unable to resolve host") || rawMsg.contains("timeout") -> "Network error: unreachable ($rawMsg)"
+                    else -> rawMsg
+                }
                 _uiState.update {
-                    it.copy(verificationState = SessionVerificationState.Invalid(e.message ?: "Connection failure"))
+                    it.copy(verificationState = SessionVerificationState.Invalid(diagnostic))
                 }
             }
         }

@@ -2,6 +2,7 @@ package com.zai.chat.ui.screens.drawer
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.zai.chat.data.local.preferences.TokenManager
 import com.zai.chat.data.model.Chat
 import com.zai.chat.data.model.Message
 import com.zai.chat.data.repository.ChatRepository
@@ -13,6 +14,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
@@ -28,7 +30,8 @@ data class DrawerUiState(
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class DrawerViewModel @Inject constructor(
-    private val repository: ChatRepository
+    private val repository: ChatRepository,
+    private val tokenManager: TokenManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DrawerUiState())
@@ -40,6 +43,11 @@ class DrawerViewModel @Inject constructor(
         viewModelScope.launch {
             repository.getChatsStream().collectLatest { chats ->
                 _uiState.update { it.copy(chats = chats) }
+            }
+        }
+        viewModelScope.launch {
+            tokenManager.tokenFlow.filterNotNull().collectLatest {
+                repository.refreshChats()
             }
         }
         viewModelScope.launch {

@@ -82,7 +82,7 @@ class ZaiApiService @Inject constructor(
 
     suspend fun getChats(page: Int): List<ChatListItemResponse> = withContext(Dispatchers.IO) {
         val http = Request.Builder()
-            .url("${ZaiConfig.BASE_URL}${ZaiConfig.CHATS_PATH}/?page=$page")
+            .url("${ZaiConfig.BASE_URL}${ZaiConfig.CHATS_PATH}?page=$page")
             .get()
             .build()
         okHttpClient.newCall(http).execute().use { response ->
@@ -94,7 +94,7 @@ class ZaiApiService @Inject constructor(
 
     suspend fun getChatDetail(chatId: String): ChatDetailResponse = withContext(Dispatchers.IO) {
         val http = Request.Builder()
-            .url("${ZaiConfig.BASE_URL}${ZaiConfig.CHATS_PATH}/$chatId")
+            .url("${ZaiConfig.BASE_URL}${ZaiConfig.CHATS_PATH}$chatId")
             .get()
             .build()
         okHttpClient.newCall(http).execute().use { response ->
@@ -107,7 +107,7 @@ class ZaiApiService @Inject constructor(
     suspend fun createChat(title: String): ChatListItemResponse = withContext(Dispatchers.IO) {
         val payload = json.encodeToString(mapOf("title" to title))
         val http = Request.Builder()
-            .url("${ZaiConfig.BASE_URL}${ZaiConfig.CHATS_PATH}/new")
+            .url("${ZaiConfig.BASE_URL}${ZaiConfig.CHATS_PATH}new")
             .post(payload.toRequestBody(jsonMediaType))
             .build()
         okHttpClient.newCall(http).execute().use { response ->
@@ -119,25 +119,32 @@ class ZaiApiService @Inject constructor(
 
     suspend fun deleteChat(chatId: String): Boolean = withContext(Dispatchers.IO) {
         val http = Request.Builder()
-            .url("${ZaiConfig.BASE_URL}${ZaiConfig.CHATS_PATH}/$chatId")
+            .url("${ZaiConfig.BASE_URL}${ZaiConfig.CHATS_PATH}$chatId")
             .delete()
             .build()
         okHttpClient.newCall(http).execute().use { it.isSuccessful }
     }
 
-    /** Never throws — model list failure falls back to the config default. */
-    suspend fun getAvailableModels(): List<String> = withContext(Dispatchers.IO) {
+    /**
+     * Honest probe: throws on any HTTP or network failure so session verification
+     * accurately reflects auth & connectivity state.
+     */
+    suspend fun pingAvailableModels(): List<String> = withContext(Dispatchers.IO) {
         val http = Request.Builder()
             .url(ZaiConfig.BASE_URL + ZaiConfig.MODELS_PATH)
             .get()
             .build()
+        okHttpClient.newCall(http).execute().use { response ->
+            if (!response.isSuccessful) throw IOException("HTTP ${response.code}: ${response.message}")
+            val body = response.body?.string() ?: throw IOException("Empty models response")
+            json.decodeFromString<ModelsListResponse>(body).data.map { it.id }
+        }
+    }
+
+    /** Never throws — model list failure falls back to the config default for UI picker. */
+    suspend fun getAvailableModels(): List<String> = withContext(Dispatchers.IO) {
         try {
-            okHttpClient.newCall(http).execute().use { response ->
-                if (!response.isSuccessful) return@withContext listOf(ZaiConfig.MODEL_DEFAULT)
-                val body = response.body?.string()
-                    ?: return@withContext listOf(ZaiConfig.MODEL_DEFAULT)
-                json.decodeFromString<ModelsListResponse>(body).data.map { it.id }
-            }
+            pingAvailableModels()
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
