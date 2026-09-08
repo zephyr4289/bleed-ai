@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Terminal
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -86,6 +87,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel,
     onBack: () -> Unit,
     onManageSession: () -> Unit,
+    onOpenTerminal: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val themeMode by viewModel.themeMode.collectAsState()
@@ -443,6 +445,41 @@ fun SettingsScreen(
                     ) {
                         Text("Clear Local Cache", style = MaterialTheme.typography.labelMedium)
                     }
+                }
+            }
+
+            // ── System Diagnostics ───────────────────────────────────────
+            SettingsSection(title = "SYSTEM & DIAGNOSTICS") {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                            onOpenTerminal()
+                        }
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
+                        Text(
+                            text = "Live Logcat Terminal",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                color = TextPrimary
+                            )
+                        )
+                        Text(
+                            text = "Zero-overhead in-app live logcat viewer with clipboard copy & phone Downloads export.",
+                            style = MaterialTheme.typography.bodySmall.copy(color = TextSecondary)
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Rounded.Terminal,
+                        contentDescription = "Live Logcat Terminal",
+                        tint = EmeraldPulse,
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
             }
 

@@ -102,6 +102,7 @@ fun ChatScreen(
     onOpenDrawer: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     onNewChat: () -> Unit = {},
+    onOpenTerminal: () -> Unit = {},
     onOpenGallery: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -149,6 +150,12 @@ fun ChatScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = {
+                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                        onOpenTerminal()
+                    }) {
+                        Icon(Icons.Rounded.Terminal, contentDescription = "Live Logcat Terminal", tint = EmeraldPulse)
+                    }
                     IconButton(onClick = {
                         view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                         onNewChat()

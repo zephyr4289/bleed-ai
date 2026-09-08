@@ -2,8 +2,11 @@ package com.zai.chat.network.transport
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.util.Log
+import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
@@ -41,6 +44,7 @@ class WebViewEngine @Inject constructor(
     private val bridge = object {
         @JavascriptInterface
         fun onEvent(payload: String) {
+            Log.d("BleedAI-Bridge", "JS Event: ${payload.take(300)}")
             eventChannel.trySend(payload)
         }
     }
@@ -51,6 +55,7 @@ class WebViewEngine @Inject constructor(
             if (isBootstrapped && webView != null) return@withContext true
 
             try {
+                Log.i("BleedAI-WebView", "ensureReady: Initializing headless WebView runtime...")
                 if (webView == null) {
                     val view = WebView(context).apply {
                         settings.javaScriptEnabled = true
@@ -67,9 +72,19 @@ class WebViewEngine @Inject constructor(
 
                         addJavascriptInterface(bridge, TransportScripts.BRIDGE_NAME)
 
+                        webChromeClient = object : WebChromeClient() {
+                            override fun onConsoleMessage(cm: ConsoleMessage?): Boolean {
+                                val msg = cm?.message().orEmpty()
+                                val line = cm?.lineNumber() ?: 0
+                                Log.d("BleedAI-WebViewJS", "[Line $line] $msg")
+                                return true
+                            }
+                        }
+
                         webViewClient = object : WebViewClient() {
                             override fun onPageFinished(view: WebView?, url: String?) {
                                 super.onPageFinished(view, url)
+                                Log.i("BleedAI-WebView", "onPageFinished: $url")
                                 if (!pageFinishedDeferred.isCompleted) {
                                     pageFinishedDeferred.complete(Unit)
                                 }
@@ -81,6 +96,7 @@ class WebViewEngine @Inject constructor(
                                 error: WebResourceError?
                             ) {
                                 super.onReceivedError(view, request, error)
+                                Log.w("BleedAI-WebView", "onReceivedError: ${request?.url} -> ${error?.description}")
                             }
                         }
                     }
@@ -95,14 +111,17 @@ class WebViewEngine @Inject constructor(
 
                 // Inject token from TokenManager
                 tokenManager.getStoredToken()?.let { token ->
+                    Log.d("BleedAI-WebView", "Injecting auth token into WebView localStorage...")
                     eval(TransportScripts.injectAuthJs(token))
                 }
 
                 // Verify ready probe
                 val ready = eval(TransportScripts.READY_PROBE_JS)
                 isBootstrapped = (ready == "true" || ready.contains("true"))
+                Log.i("BleedAI-WebView", "Ready probe result: $ready (isBootstrapped=$isBootstrapped)")
                 true
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.e("BleedAI-WebView", "ensureReady failed: ${e.message}", e)
                 false
             }
         }
@@ -120,6 +139,7 @@ class WebViewEngine @Inject constructor(
     }
 
     fun abort() {
+        Log.w("BleedAI-WebView", "Aborting current in-flight WebView fetch execution")
         webView?.post {
             webView?.evaluateJavascript(TransportScripts.ABORT_JS, null)
         }

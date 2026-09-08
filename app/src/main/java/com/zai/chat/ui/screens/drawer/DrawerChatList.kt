@@ -28,6 +28,7 @@ import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Terminal
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -80,6 +81,7 @@ fun DrawerChatList(
     onSelectChat: (String) -> Unit,
     onNewChat: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenTerminal: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -117,6 +119,17 @@ fun DrawerChatList(
             }
 
             Row {
+                IconButton(onClick = {
+                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    onOpenTerminal()
+                }) {
+                    Icon(
+                        imageVector = Icons.Rounded.Terminal,
+                        contentDescription = "Terminal",
+                        tint = EmeraldPulse,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
                 IconButton(onClick = {
                     view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                     onNewChat()
@@ -290,6 +303,10 @@ fun DrawerChatList(
             modifier = Modifier
                 .fillMaxWidth()
                 .specularBorder(footerShape)
+                .tactilePress {
+                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    onOpenTerminal()
+                }
         ) {
             Row(
                 modifier = Modifier.padding(12.dp),
@@ -312,7 +329,7 @@ fun DrawerChatList(
                         )
                     )
                     Text(
-                        text = "Latency: 42ms • TLS 1.3",
+                        text = "Tap to open Logcat Terminal",
                         style = MaterialTheme.typography.labelSmall.copy(
                             color = TextTertiary,
                             fontSize = 10.sp
@@ -320,8 +337,8 @@ fun DrawerChatList(
                     )
                 }
                 Icon(
-                    imageVector = Icons.Rounded.Bolt,
-                    contentDescription = null,
+                    imageVector = Icons.Rounded.Terminal,
+                    contentDescription = "Terminal",
                     tint = EmeraldPulse,
                     modifier = Modifier.size(16.dp)
                 )

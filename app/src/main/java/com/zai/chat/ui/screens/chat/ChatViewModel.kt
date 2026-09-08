@@ -350,6 +350,7 @@ class ChatViewModel @Inject constructor(
 
     private suspend fun startStream(chatId: String, attachments: List<FileAttachment> = emptyList()) {
         val state = _uiState.value
+        Log.i("BleedAI-ChatVM", "startStream() -> Starting completion stream for chatId=$chatId, model=${state.selectedModel}")
         repository.streamCompletion(
             chatId = chatId,
             model = state.selectedModel,
@@ -358,9 +359,12 @@ class ChatViewModel @Inject constructor(
             attachments = attachments
         ).collect { event ->
             when (event) {
-                is StreamEvent.ReasoningDelta ->
+                is StreamEvent.ReasoningDelta -> {
+                    Log.d("BleedAI-ChatVM", "Live Reasoning chunk: ${event.text.take(40)}...")
                     _uiState.update { it.copy(liveReasoning = it.liveReasoning + event.text) }
-                is StreamEvent.ContentDelta ->
+                }
+                is StreamEvent.ContentDelta -> {
+                    Log.d("BleedAI-ChatVM", "Live Content chunk: ${event.text.take(40)}...")
                     _uiState.update {
                         it.copy(
                             liveContent = it.liveContent + event.text,
@@ -368,10 +372,15 @@ class ChatViewModel @Inject constructor(
                                 if (isScrolledUp) it.unreadWhileScrolledUp + 1 else 0
                         )
                     }
-                // Citations/Usage are persisted by the repository on Done;
-                // the transient bubble intentionally skips them.
-                is StreamEvent.Citations, is StreamEvent.Usage -> Unit
+                }
+                is StreamEvent.Citations -> {
+                    Log.d("BleedAI-ChatVM", "Live Citations: ${event.citations.size} items")
+                }
+                is StreamEvent.Usage -> {
+                    Log.d("BleedAI-ChatVM", "Live Usage: ${event.usage.totalTokens} tokens")
+                }
                 is StreamEvent.Done -> {
+                    Log.i("BleedAI-ChatVM", "Stream completed (Done event received)")
                     val hasText = _uiState.value.let {
                         it.liveContent.isNotBlank() || it.liveReasoning.isNotBlank()
                     }
@@ -387,6 +396,7 @@ class ChatViewModel @Inject constructor(
                     }
                 }
                 is StreamEvent.Error -> {
+                    Log.e("BleedAI-ChatVM", "Stream error: ${event.throwable.message}")
                     val hasPartial = event.partialContent.isNotEmpty() ||
                         event.partialReasoning.isNotEmpty()
                     _uiState.update {

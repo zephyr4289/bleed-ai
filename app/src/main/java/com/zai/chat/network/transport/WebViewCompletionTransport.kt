@@ -1,5 +1,6 @@
 package com.zai.chat.network.transport
 
+import android.util.Log
 import com.zai.chat.config.ZaiConfig
 import com.zai.chat.data.local.preferences.JwtParser
 import com.zai.chat.data.local.preferences.TokenManager
@@ -49,8 +50,10 @@ class WebViewCompletionTransport @Inject constructor(
 ) : CompletionTransport {
 
     override fun stream(request: ChatCompletionRequest): Flow<StreamEvent> = flow {
+        Log.i("BleedAI-Transport", "stream() -> Initiating completion for chat: ${request.chatId}, model: ${request.model}")
         val token = tokenManager.getStoredToken()
         if (token.isNullOrBlank()) {
+            Log.e("BleedAI-Transport", "stream() -> No active session token found!")
             emit(StreamEvent.Error(IOException("No active session token configured"), "", ""))
             return@flow
         }
@@ -66,6 +69,7 @@ class WebViewCompletionTransport @Inject constructor(
         )
 
         val targetUrl = "${ZaiConfig.BASE_URL}${ZaiConfig.COMPLETIONS_PATH}?${signed.queryParams}&signature_timestamp=${signed.timestamp}"
+        Log.d("BleedAI-Transport", "Target completion URL: $targetUrl")
 
         val headersMap = mapOf(
             "Authorization" to "Bearer $token",
@@ -94,18 +98,22 @@ class WebViewCompletionTransport @Inject constructor(
         }
 
         val bodyJson = json.encodeToString(bodyObj)
+        Log.d("BleedAI-Transport", "Wire body payload (${bodyJson.length} chars): ${bodyJson.take(300)}")
 
         // Register cancellation hook to abort in-flight fetch in WebView
         currentCoroutineContext()[Job]?.invokeOnCompletion {
+            Log.w("BleedAI-Transport", "Completion coroutine cancelled -> invoking abort()")
             webViewEngine.abort()
         }
 
         // Drain any stale events in channel
         while (true) {
             val stale = webViewEngine.eventChannel.tryReceive().getOrNull() ?: break
+            Log.d("BleedAI-Transport", "Drained stale bridge event: $stale")
         }
 
-        webViewEngine.ensureReady()
+        val ready = webViewEngine.ensureReady()
+        Log.i("BleedAI-Transport", "WebViewEngine ready status: $ready")
 
         val sendJs = TransportScripts.buildSendJs(
             url = targetUrl,
@@ -114,26 +122,42 @@ class WebViewCompletionTransport @Inject constructor(
         )
 
         webViewEngine.eval(sendJs)
+        Log.d("BleedAI-Transport", "Injected fetch script into WebView runtime")
 
         try {
             while (true) {
                 val rawEvent = webViewEngine.eventChannel.receive()
                 val envelope = try {
                     json.decodeFromString<BridgeEnvelope>(rawEvent)
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    Log.w("BleedAI-Transport", "Failed to decode bridge envelope: $rawEvent, error: ${e.message}")
                     continue
                 }
 
                 when (envelope.t) {
-                    "reasoning" -> emit(StreamEvent.ReasoningDelta(envelope.text))
-                    "content" -> emit(StreamEvent.ContentDelta(envelope.text))
-                    "citations" -> emit(StreamEvent.Citations(envelope.citations))
-                    "usage" -> emit(StreamEvent.Usage(UsageInfo(totalTokens = envelope.totalTokens)))
+                    "reasoning" -> {
+                        Log.d("BleedAI-Transport", "Reasoning chunk (${envelope.text.length} chars)")
+                        emit(StreamEvent.ReasoningDelta(envelope.text))
+                    }
+                    "content" -> {
+                        Log.d("BleedAI-Transport", "Content chunk (${envelope.text.length} chars)")
+                        emit(StreamEvent.ContentDelta(envelope.text))
+                    }
+                    "citations" -> {
+                        Log.d("BleedAI-Transport", "Citations received (${envelope.citations.size} items)")
+                        emit(StreamEvent.Citations(envelope.citations))
+                    }
+                    "usage" -> {
+                        Log.d("BleedAI-Transport", "Usage tokens: ${envelope.totalTokens}")
+                        emit(StreamEvent.Usage(UsageInfo(totalTokens = envelope.totalTokens)))
+                    }
                     "done" -> {
+                        Log.i("BleedAI-Transport", "Stream completed with DONE")
                         emit(StreamEvent.Done)
                         break
                     }
                     "error" -> {
+                        Log.e("BleedAI-Transport", "Stream error received: code=${envelope.code}, msg=${envelope.msg}")
                         if (envelope.code == 401) {
                             authEventManager.emitTokenExpired()
                         }
@@ -149,9 +173,11 @@ class WebViewCompletionTransport @Inject constructor(
                 }
             }
         } catch (e: CancellationException) {
+            Log.w("BleedAI-Transport", "Stream cancelled by caller")
             webViewEngine.abort()
             throw e
         } catch (e: Exception) {
+            Log.e("BleedAI-Transport", "Unhandled exception in stream transport: ${e.message}", e)
             emit(StreamEvent.Error(e, "", ""))
         }
     }.flowOn(Dispatchers.IO)

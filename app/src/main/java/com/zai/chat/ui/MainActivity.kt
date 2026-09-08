@@ -42,6 +42,8 @@ import com.zai.chat.ui.screens.session.SessionUiEvent
 import com.zai.chat.ui.screens.session.SessionViewModel
 import com.zai.chat.ui.screens.settings.SettingsScreen
 import com.zai.chat.ui.screens.settings.SettingsViewModel
+import com.zai.chat.ui.screens.terminal.TerminalScreen
+import com.zai.chat.ui.screens.terminal.TerminalViewModel
 import com.zai.chat.ui.theme.ZaiTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -135,6 +137,10 @@ class MainActivity : ComponentActivity() {
                                 onOpenSettings = {
                                     scope.launch { drawerState.close() }
                                     navController.navigate("settings")
+                                },
+                                onOpenTerminal = {
+                                    scope.launch { drawerState.close() }
+                                    navController.navigate("terminal")
                                 }
                             )
                         }
@@ -159,6 +165,7 @@ class MainActivity : ComponentActivity() {
                                     onOpenDrawer = { scope.launch { drawerState.open() } },
                                     onOpenSettings = { navController.navigate("settings") },
                                     onNewChat = { navController.navigate("chat") },
+                                    onOpenTerminal = { navController.navigate("terminal") },
                                     onOpenGallery = { showGallery = true }
                                 )
                             }
@@ -170,13 +177,21 @@ class MainActivity : ComponentActivity() {
                                     onManageSession = {
                                         sessionViewModel.onEvent(SessionUiEvent.SetMode(SessionMode.ActiveManagement))
                                         navController.navigate("session_management")
-                                    }
+                                    },
+                                    onOpenTerminal = { navController.navigate("terminal") }
                                 )
                             }
                             composable("session_management") {
                                 ManageSessionScreen(
                                     viewModel = sessionViewModel,
                                     onNavigateBack = { navController.popBackStack() }
+                                )
+                            }
+                            composable("terminal") {
+                                val terminalViewModel: TerminalViewModel = hiltViewModel()
+                                TerminalScreen(
+                                    viewModel = terminalViewModel,
+                                    onBack = { navController.popBackStack() }
                                 )
                             }
                         }

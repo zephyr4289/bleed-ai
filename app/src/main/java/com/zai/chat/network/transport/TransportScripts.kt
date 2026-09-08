@@ -57,9 +57,13 @@ object TransportScripts {
                 const headers = $headersJson;
                 const body = $bodyJson;
 
+                console.log('[ZaiBridge] Starting completion fetch to: ' + '$url');
+                console.log('[ZaiBridge] Request Model: ' + body.model + ', Messages count: ' + (body.messages ? body.messages.length : 0));
+
                 // If page has initialized captcha and minted token, attach if missing
                 if (!body.captcha_verify_param && typeof window.__zaiCaptchaParam !== 'undefined' && window.__zaiCaptchaParam) {
                     body.captcha_verify_param = window.__zaiCaptchaParam;
+                    console.log('[ZaiBridge] Attached captive verify param');
                 }
 
                 const response = await fetch('$url', {
@@ -70,13 +74,17 @@ object TransportScripts {
                     body: JSON.stringify(body)
                 });
 
+                console.log('[ZaiBridge] HTTP Response: ' + response.status + ' ' + response.statusText);
+
                 if (response.status === 401) {
+                    console.error('[ZaiBridge] HTTP 401 Unauthorized - Session expired');
                     window.$BRIDGE_NAME.onEvent(JSON.stringify({ v: 1, t: "error", code: 401, msg: "Session expired", partialContent, partialReasoning }));
                     return;
                 }
 
                 if (!response.ok) {
                     const errText = await response.text();
+                    console.error('[ZaiBridge] HTTP Error ' + response.status + ': ' + errText.slice(0, 300));
                     window.$BRIDGE_NAME.onEvent(JSON.stringify({ v: 1, t: "error", code: response.status, msg: errText.slice(0, 300), partialContent, partialReasoning }));
                     return;
                 }
@@ -98,6 +106,7 @@ object TransportScripts {
                         if (!trimmed || trimmed.startsWith(':')) continue;
 
                         if (trimmed === 'data: [DONE]') {
+                            console.log('[ZaiBridge] Received data: [DONE]');
                             window.$BRIDGE_NAME.onEvent(JSON.stringify({ v: 1, t: "done" }));
                             return;
                         }
@@ -111,6 +120,7 @@ object TransportScripts {
                                 if (parsed.error || parsed.data?.error || parsed.data?.data?.error) {
                                     const errObj = parsed.error || parsed.data?.error || parsed.data?.data?.error;
                                     const errDetail = errObj.detail || errObj.message || JSON.stringify(errObj);
+                                    console.error('[ZaiBridge] Payload error: ' + errDetail);
                                     window.$BRIDGE_NAME.onEvent(JSON.stringify({ v: 1, t: "error", code: errObj.code || 400, msg: errDetail, partialContent, partialReasoning }));
                                     return;
                                 }
@@ -149,17 +159,19 @@ object TransportScripts {
                                     window.$BRIDGE_NAME.onEvent(JSON.stringify({ v: 1, t: "usage", totalTokens: parsed.usage.total_tokens || 0 }));
                                 }
                             } catch(e) {
-                                // Ignore non-JSON lines in stream
+                                console.warn('[ZaiBridge] Non-JSON SSE line: ' + trimmed.slice(0, 100));
                             }
                         }
                     }
                 }
+                console.log('[ZaiBridge] Stream ended cleanly');
                 window.$BRIDGE_NAME.onEvent(JSON.stringify({ v: 1, t: "done" }));
             } catch(err) {
                 if (err.name === 'AbortError') {
-                    // Aborted manually
+                    console.log('[ZaiBridge] Fetch aborted by client');
                     window.$BRIDGE_NAME.onEvent(JSON.stringify({ v: 1, t: "done" }));
                 } else {
+                    console.error('[ZaiBridge] Stream fetch error: ' + err.message);
                     window.$BRIDGE_NAME.onEvent(JSON.stringify({ v: 1, t: "error", code: 0, msg: err.message || 'Stream error', partialContent, partialReasoning }));
                 }
             } finally {
